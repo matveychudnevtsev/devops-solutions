@@ -1,0 +1,9 @@
+---
+- name: Copy /usr/src/data/index.html
+  hosts: all
+  become: yes
+  tasks:
+  - name: Copy file
+    copy:
+      src: /usr/src/data/index.html
+      dest: /opt/data
