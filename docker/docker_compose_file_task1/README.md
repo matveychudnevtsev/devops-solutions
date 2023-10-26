@@ -5,5 +5,5 @@ d. Соотнесите том /usr/local/apache2/htdocs контейнера с
 
 ## Решение:
 
-**Playbook:** [playbook.yml](./playbook.yml)
+**Docker compose file:** [docker-compose.yml](./docker-compose.yml)
 
