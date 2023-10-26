@@ -1,0 +1,34 @@
+---
+- name: Create file on app servers
+  hosts: appservers
+  tasks:
+    - name: Create /usr/src/web.txt
+      file:
+        path: /usr/src/web.txt
+        state: touch
+        mode: '0744'
+      become: yes
+
+    - name: Set file owner and group for stapp01
+      file:
+        path: /usr/src/web.txt
+        owner: tony
+        group: tony
+      become: yes
+      when: "'stapp01' in inventory_hostname"
+
+    - name: Set file owner and group for stapp02
+      file:
+        path: /usr/src/web.txt
+        owner: steve
+        group: steve
+      become: yes
+      when: "'stapp02' in inventory_hostname"
+
+    - name: Set file owner and group for stapp03
+      file:
+        path: /usr/src/web.txt
+        owner: banner
+        group: banner
+      become: yes
+      when: "'stapp03' in inventory_hostname"
