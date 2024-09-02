@@ -1,3 +1,4 @@
+// Реальные данные для диаграммы
 def chartData = [
     ["без плагина", 24],
     ["3.3", 43],
@@ -12,18 +13,14 @@ chartData.each { row ->
     tableContent.append("<tr><td>${row[0]}</td><td>${row[1]}</td></tr>")
 }
 
-// Формирование HTML с макросом диаграммы и встроенной таблицей данных
+// Формирование HTML с макросом "Диаграмма из таблицы" и встроенной таблицей данных
 def html = """
-<ac:structured-macro ac:name="chart">
+<ac:structured-macro ac:name="chart-from-table">
   <ac:parameter ac:name="type">donut</ac:parameter>
   <ac:parameter ac:name="title">Распределение версий</ac:parameter>
   <ac:parameter ac:name="width">500</ac:parameter>
   <ac:parameter ac:name="height">400</ac:parameter>
-  <ac:parameter ac:name="dataDisplay">percentage</ac:parameter>
-  <ac:parameter ac:name="legend">true</ac:parameter>
-  <ac:parameter ac:name="legendPosition">bottom</ac:parameter>
-  <ac:parameter ac:name="labelColumn">версия</ac:parameter>
-  <ac:parameter ac:name="valueColumn">количество</ac:parameter>
+  <ac:parameter ac:name="columns">1,2</ac:parameter>
   <ac:rich-text-body>
     <table>
       <tbody>
@@ -33,3 +30,6 @@ def html = """
   </ac:rich-text-body>
 </ac:structured-macro>
 """
+
+// Вывод сформированного HTML
+println(html)
