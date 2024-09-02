@@ -10,6 +10,14 @@ def chartData = [
 // Вычисление общей суммы для корректного отображения процентов
 def total = chartData.sum { it[1] }
 
+// Генерация содержимого таблицы
+def tableContent = new StringBuilder()
+tableContent.append("<tr><th>Продукт</th><th>Продажи</th><th>Процент</th></tr>")
+chartData.each { row ->
+    def percent = (row[1] / total * 100).round(2)
+    tableContent.append("<tr><td>${row[0]}</td><td>${row[1]}</td><td>${percent}%</td></tr>")
+}
+
 // Формирование HTML с макросом диаграммы и встроенной таблицей данных
 def html = """
 <ac:structured-macro ac:name="chart">
@@ -22,15 +30,7 @@ def html = """
   <ac:rich-text-body>
     <table>
       <tbody>
-        <tr>
-          <th>Продукт</th>
-          <th>Продажи</th>
-          <th>Процент</th>
-        </tr>
-        ${chartData.collect { row ->
-          def percent = (row[1] / total * 100).round(2)
-          "<tr><td>${row[0]}</td><td>${row[1]}</td><td>${percent}%</td></tr>"
-        }.join("")}
+        ${tableContent}
       </tbody>
     </table>
   </ac:rich-text-body>
