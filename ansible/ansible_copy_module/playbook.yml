@@ -135,4 +135,18 @@ def chartMacro = '''
   <ac:parameter ac:name="tables">1</ac:parameter>
 </ac:structured-macro>
 '''
-    
+
+
+<ac:structured-macro ac:name="chart">
+  <ac:parameter ac:name="type">pie</ac:parameter>
+  <ac:parameter ac:name="dataDisplay">percentage</ac:parameter>
+  <ac:parameter ac:name="width">500</ac:parameter>
+  <ac:parameter ac:name="height">300</ac:parameter>
+  <ac:rich-text-body>
+    <p>
+      <ac:structured-macro ac:name="table-chart">
+        <ac:parameter ac:name="dataOrientation">vertical</ac:parameter>
+      </ac:structured-macro>
+    </p>
+  </ac:rich-text-body>
+</ac:structured-macro>
