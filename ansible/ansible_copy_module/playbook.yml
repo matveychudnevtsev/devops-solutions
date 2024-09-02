@@ -1,9 +1,10 @@
----
-- name: Copy /usr/src/data/index.html
-  hosts: all
-  become: yes
-  tasks:
-  - name: Copy file
-    copy:
-      src: /usr/src/data/index.html
-      dest: /opt/data
+def html = """
+<h1>Название страницы</h1>
+<ac:structured-macro ac:name="mermaid">
+  <ac:plain-text-body><![CDATA[
+  graph TD
+    A[Начало] --> B[Процесс]
+    B --> C[Конец]
+  ]]></ac:plain-text-body>
+</ac:structured-macro>
+"""
