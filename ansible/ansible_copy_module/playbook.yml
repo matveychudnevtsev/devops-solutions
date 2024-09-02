@@ -1,165 +1,17 @@
-def html = """
-<h1>Название страницы</h1>
-<ac:structured-macro ac:name="mermaid">
-  <ac:plain-text-body><![CDATA[
-  graph TD
-    A[Начало] --> B[Процесс]
-    B --> C[Конец]
-  ]]></ac:plain-text-body>
-</ac:structured-macro>
-"""
 def chartData = [
-    ["Янв", 100, 120],
-    ["Фев", 110, 130],
-    ["Мар", 120, 140],
-    ["Апр", 130, 150]
+    ["Category A", 30],
+    ["Category B", 50],
+    ["Category C", 20]
 ]
 
-// Формирование HTML с макросом диаграммы
+// Формирование HTML с макросом диаграммы и встроенной таблицей данных
 def html = """
-<ac:structured-macro ac:name="chart-from-table">
-  <ac:parameter ac:name="type">line</ac:parameter>
-  <ac:rich-text-body>
-    <table>
-      <tbody>
-        <tr>
-          <th>Месяц</th>
-          <th>Продажи 2023</th>
-          <th>Продажи 2024</th>
-        </tr>
-        ${chartData.collect { row ->
-          "<tr>${row.collect { cell -> "<td>${cell}</td>" }.join("")}</tr>"
-        }.join("")}
-      </tbody>
-    </table>
-  </ac:rich-text-body>
-</ac:structured-macro>
-"""
-<table class="wysiwyg-macro" data-macro-name="table-chart" data-macro-id="some-unique-id" data-macro-parameters="type=line" data-macro-schema-version="1" data-macro-body-type="RICH_TEXT">
-  <tbody>
-    <tr>
-      <td class="wysiwyg-macro-body">
-        <table>
-          <tbody>
-            <tr>
-              <th>Месяц</th>
-              <th>Продажи 2023</th>
-              <th>Продажи 2024</th>
-            </tr>
-            ${chartData.collect { row ->
-              "<tr>${row.collect { cell -> "<td>${cell}</td>" }.join("")}</tr>"
-            }.join("")}
-          </tbody>
-        </table>
-      </td>
-    </tr>
-  </tbody>
-</table>
-Wiki markup example
-Wiki markup is only supported in the legacy editor.
-
-Below is a simple example of a pie chart.
-
-<ac:structured-macro ac:name="chart">
-  <ac:parameter ac:name="type">pie</ac:parameter>
-  <ac:parameter ac:name="dataDisplay">percentage</ac:parameter>
-  <ac:parameter ac:name="width">500</ac:parameter>
-  <ac:parameter ac:name="height">300</ac:parameter>
-  <ac:parameter ac:name="tables">my-data-table</ac:parameter>
-</ac:structured-macro>
-
-
-<ac:structured-macro ac:name="chart">
-  <ac:parameter ac:name="type">pie</ac:parameter>
-  <ac:parameter ac:name="dataDisplay">percentage</ac:parameter>
-  <ac:parameter ac:name="width">500</ac:parameter>
-  <ac:parameter ac:name="height">300</ac:parameter>
-  <ac:parameter ac:name="tables">my-data-table</ac:parameter>
-</ac:structured-macro>
-
-<table data-table-id="my-data-table">
-  <tbody>
-    <tr>
-      <th>Продукт</th>
-      <th>Продажи</th>
-    </tr>
-    ${chartData.collect { row ->
-      "<tr>${row.collect { cell -> "<td>${cell}</td>" }.join("")}</tr>"
-    }.join("")}
-  </tbody>
-</table>
-    
-            {chart:type=pie|title=Fish Sold}
-|| Fish Type || 2004 || 2005 ||
-|| Herring | 9,500 | 8,300 |
-|| Salmon | 2,900 | 4,200 |
-|| Tuna | 1,500 | 1,500 |
-{chart}
-
-
-
-
-
-
-
-def testDataTable = '''
-<table>
-  <tbody>
-    <tr>
-      <th>Category</th>
-      <th>Value</th>
-    </tr>
-    <tr>
-      <td>Category A</td>
-      <td>30</td>
-    </tr>
-    <tr>
-      <td>Category B</td>
-      <td>50</td>
-    </tr>
-    <tr>
-      <td>Category C</td>
-      <td>20</td>
-    </tr>
-  </tbody>
-</table>
-'''
-
-// Добавляем макрос "Диаграмма из таблицы" с тестовыми данными
-def chartMacro = '''
-<ac:structured-macro ac:name="chart">
-  <ac:parameter ac:name="type">pie</ac:parameter>
-  <ac:parameter ac:name="dataDisplay">percentage</ac:parameter>
-  <ac:parameter ac:name="width">500</ac:parameter>
-  <ac:parameter ac:name="height">300</ac:parameter>
-  <ac:parameter ac:name="tables">1</ac:parameter>
-</ac:structured-macro>
-'''
-
-
-<ac:structured-macro ac:name="chart">
-  <ac:parameter ac:name="type">pie</ac:parameter>
-  <ac:parameter ac:name="dataDisplay">percentage</ac:parameter>
-  <ac:parameter ac:name="width">500</ac:parameter>
-  <ac:parameter ac:name="height">300</ac:parameter>
-  <ac:rich-text-body>
-    <p>
-      <ac:structured-macro ac:name="table-chart">
-        <ac:parameter ac:name="dataOrientation">vertical</ac:parameter>
-      </ac:structured-macro>
-    </p>
-  </ac:rich-text-body>
-</ac:structured-macro>
-
-
-
-
-
 <ac:structured-macro ac:name="chart">
   <ac:parameter ac:name="type">pie</ac:parameter>
   <ac:parameter ac:name="title">Sample Chart</ac:parameter>
   <ac:parameter ac:name="width">500</ac:parameter>
   <ac:parameter ac:name="height">300</ac:parameter>
+  <ac:parameter ac:name="dataDisplay">percentage</ac:parameter>
   <ac:rich-text-body>
     <table>
       <tbody>
@@ -167,18 +19,9 @@ def chartMacro = '''
           <th>Category</th>
           <th>Value</th>
         </tr>
-        <tr>
-          <td>Category A</td>
-          <td>30</td>
-        </tr>
-        <tr>
-          <td>Category B</td>
-          <td>50</td>
-        </tr>
-        <tr>
-          <td>Category C</td>
-          <td>20</td>
-        </tr>
+        ${chartData.collect { row ->
+          "<tr><td>${row[0]}</td><td>${row[1]}</td></tr>"
+        }.join("")}
       </tbody>
     </table>
   </ac:rich-text-body>
