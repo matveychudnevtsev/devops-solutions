@@ -8,3 +8,30 @@ def html = """
   ]]></ac:plain-text-body>
 </ac:structured-macro>
 """
+def chartData = [
+    ["Янв", 100, 120],
+    ["Фев", 110, 130],
+    ["Мар", 120, 140],
+    ["Апр", 130, 150]
+]
+
+// Формирование HTML с макросом диаграммы
+def html = """
+<ac:structured-macro ac:name="chart-from-table">
+  <ac:parameter ac:name="type">line</ac:parameter>
+  <ac:rich-text-body>
+    <table>
+      <tbody>
+        <tr>
+          <th>Месяц</th>
+          <th>Продажи 2023</th>
+          <th>Продажи 2024</th>
+        </tr>
+        ${chartData.collect { row ->
+          "<tr>${row.collect { cell -> "<td>${cell}</td>" }.join("")}</tr>"
+        }.join("")}
+      </tbody>
+    </table>
+  </ac:rich-text-body>
+</ac:structured-macro>
+"""
