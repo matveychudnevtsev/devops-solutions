@@ -60,6 +60,15 @@ Wiki markup is only supported in the legacy editor.
 
 Below is a simple example of a pie chart.
 
+<ac:structured-macro ac:name="chart">
+  <ac:parameter ac:name="type">pie</ac:parameter>
+  <ac:parameter ac:name="dataDisplay">percentage</ac:parameter>
+  <ac:parameter ac:name="width">500</ac:parameter>
+  <ac:parameter ac:name="height">300</ac:parameter>
+  <ac:parameter ac:name="tables">my-data-table</ac:parameter>
+</ac:structured-macro>
+
+
 
     
             {chart:type=pie|title=Fish Sold}
