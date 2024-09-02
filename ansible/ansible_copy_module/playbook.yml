@@ -55,3 +55,17 @@ def html = """
     </tr>
   </tbody>
 </table>
+Wiki markup example
+Wiki markup is only supported in the legacy editor.
+
+Below is a simple example of a pie chart.
+
+
+    
+            {chart:type=pie|title=Fish Sold}
+|| Fish Type || 2004 || 2005 ||
+|| Herring | 9,500 | 8,300 |
+|| Salmon | 2,900 | 4,200 |
+|| Tuna | 1,500 | 1,500 |
+{chart}
+    
