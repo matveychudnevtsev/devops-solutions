@@ -1,13 +1,10 @@
-# Задача: Ansible Copy Module
-
-**Описание:** На хосте jump имеются данные, которые необходимо скопировать на все серверы приложений с помощью Ansible.
-
-## Задание:
-
-- [ ] На хосте jump создайте файл инвентаризации `./ansible/inventory` и добавьте все серверы приложений в качестве управляемых узлов.
-- [ ] На узле перехода создайте playbook `~/ansible/playbook.yml` для копирования файла `/usr/src/data/index.html` на все серверы приложений в расположение `/opt/data`.
-
-## Решение:
-
-**Playbook:** [playbook.yml](./playbook.yml)
-
+def html = """
+<h1>Название страницы</h1>
+<ac:structured-macro ac:name="mermaid">
+  <ac:plain-text-body><![CDATA[
+  graph TD
+    A[Начало] --> B[Процесс]
+    B --> C[Конец]
+  ]]></ac:plain-text-body>
+</ac:structured-macro>
+"""
