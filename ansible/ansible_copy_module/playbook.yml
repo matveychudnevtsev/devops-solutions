@@ -95,4 +95,44 @@ Below is a simple example of a pie chart.
 || Salmon | 2,900 | 4,200 |
 || Tuna | 1,500 | 1,500 |
 {chart}
+
+
+
+
+
+
+
+def testDataTable = '''
+<table>
+  <tbody>
+    <tr>
+      <th>Category</th>
+      <th>Value</th>
+    </tr>
+    <tr>
+      <td>Category A</td>
+      <td>30</td>
+    </tr>
+    <tr>
+      <td>Category B</td>
+      <td>50</td>
+    </tr>
+    <tr>
+      <td>Category C</td>
+      <td>20</td>
+    </tr>
+  </tbody>
+</table>
+'''
+
+// Добавляем макрос "Диаграмма из таблицы" с тестовыми данными
+def chartMacro = '''
+<ac:structured-macro ac:name="chart">
+  <ac:parameter ac:name="type">pie</ac:parameter>
+  <ac:parameter ac:name="dataDisplay">percentage</ac:parameter>
+  <ac:parameter ac:name="width">500</ac:parameter>
+  <ac:parameter ac:name="height">300</ac:parameter>
+  <ac:parameter ac:name="tables">1</ac:parameter>
+</ac:structured-macro>
+'''
     
