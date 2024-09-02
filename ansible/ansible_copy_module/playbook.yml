@@ -35,3 +35,23 @@ def html = """
   </ac:rich-text-body>
 </ac:structured-macro>
 """
+<table class="wysiwyg-macro" data-macro-name="table-chart" data-macro-id="some-unique-id" data-macro-parameters="type=line" data-macro-schema-version="1" data-macro-body-type="RICH_TEXT">
+  <tbody>
+    <tr>
+      <td class="wysiwyg-macro-body">
+        <table>
+          <tbody>
+            <tr>
+              <th>Месяц</th>
+              <th>Продажи 2023</th>
+              <th>Продажи 2024</th>
+            </tr>
+            ${chartData.collect { row ->
+              "<tr>${row.collect { cell -> "<td>${cell}</td>" }.join("")}</tr>"
+            }.join("")}
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  </tbody>
+</table>
