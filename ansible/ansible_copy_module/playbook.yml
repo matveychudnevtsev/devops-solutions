@@ -1,28 +1,38 @@
 def chartData = [
-    ["Category A", 30],
-    ["Category B", 50],
-    ["Category C", 20]
+    ["Продукт A", 150],
+    ["Продукт B", 220],
+    ["Продукт C", 80],
+    ["Продукт D", 175],
+    ["Продукт E", 130],
+    ["Продукт F", 95]
 ]
+
+// Вычисление общей суммы для корректного отображения процентов
+def total = chartData.sum { it[1] }
 
 // Формирование HTML с макросом диаграммы и встроенной таблицей данных
 def html = """
 <ac:structured-macro ac:name="chart">
   <ac:parameter ac:name="type">pie</ac:parameter>
-  <ac:parameter ac:name="title">Sample Chart</ac:parameter>
-  <ac:parameter ac:name="width">500</ac:parameter>
-  <ac:parameter ac:name="height">300</ac:parameter>
+  <ac:parameter ac:name="title">Распределение продаж по продуктам</ac:parameter>
+  <ac:parameter ac:name="width">600</ac:parameter>
+  <ac:parameter ac:name="height">400</ac:parameter>
   <ac:parameter ac:name="dataDisplay">percentage</ac:parameter>
+  <ac:parameter ac:name="legend">true</ac:parameter>
   <ac:rich-text-body>
     <table>
       <tbody>
         <tr>
-          <th>Category</th>
-          <th>Value</th>
+          <th>Продукт</th>
+          <th>Продажи</th>
+          <th>Процент</th>
         </tr>
         ${chartData.collect { row ->
-          "<tr><td>${row[0]}</td><td>${row[1]}</td></tr>"
+          def percent = (row[1] / total * 100).round(2)
+          "<tr><td>${row[0]}</td><td>${row[1]}</td><td>${percent}%</td></tr>"
         }.join("")}
       </tbody>
     </table>
   </ac:rich-text-body>
 </ac:structured-macro>
+"""
