@@ -150,3 +150,36 @@ def chartMacro = '''
     </p>
   </ac:rich-text-body>
 </ac:structured-macro>
+
+
+
+
+
+<ac:structured-macro ac:name="chart">
+  <ac:parameter ac:name="type">pie</ac:parameter>
+  <ac:parameter ac:name="title">Sample Chart</ac:parameter>
+  <ac:parameter ac:name="width">500</ac:parameter>
+  <ac:parameter ac:name="height">300</ac:parameter>
+  <ac:rich-text-body>
+    <table>
+      <tbody>
+        <tr>
+          <th>Category</th>
+          <th>Value</th>
+        </tr>
+        <tr>
+          <td>Category A</td>
+          <td>30</td>
+        </tr>
+        <tr>
+          <td>Category B</td>
+          <td>50</td>
+        </tr>
+        <tr>
+          <td>Category C</td>
+          <td>20</td>
+        </tr>
+      </tbody>
+    </table>
+  </ac:rich-text-body>
+</ac:structured-macro>
