@@ -33,3 +33,20 @@ def html = """
 
 // Вывод сформированного HTML
 println(html)
+
+
+
+def filterProjects(Map data) {
+    def filteredData = [:]
+    
+    data.each { clusterKey, items ->
+        filteredData[clusterKey] = items.findAll { item ->
+            !(item[""]?.contains("") || item[""]?.contains(""))
+        }
+    }
+    
+    return filteredData
+}
+
+// Применение фильтра
+def filteredResult = filterProjects(result)
