@@ -50,3 +50,15 @@ def filterProjects(Map data) {
 
 // Применение фильтра
 def filteredResult = filterProjects(result)
+
+
+def countOpenshiftClusters(Map filteredData) {
+    def openshiftClusters = filteredData.keySet().findAll { clusterKey ->
+        !clusterKey.contains('k8s')
+    }
+    
+    return openshiftClusters.size()
+}
+
+def totalOpenshiftClusters = countOpenshiftClusters(filteredResult)
+
