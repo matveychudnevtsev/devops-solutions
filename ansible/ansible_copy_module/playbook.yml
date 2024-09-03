@@ -80,3 +80,30 @@ def countOpenshiftClusters(Map filteredData) {
 
 def totalOpenshiftClusters = countOpenshiftClusters(filteredResult)
 
+-----------------------------------
+
+
+def filterProjects(Map data) {
+    def filteredData = [:]
+    def removedCount = 0
+
+    data.each { clusterKey, items ->
+        filteredData[clusterKey] = items.findAll { item ->
+            def keepItem = !(item["НаС"]?.toLowerCase()?.contains("") || 
+                             item[""]?.toLowerCase()?.contains(""))
+            if (!keepItem) removedCount++
+            return keepItem
+        }
+    }
+
+    println "Удалено элементов: $removedCount"
+    return filteredData
+}
+
+// Применение фильтра
+def filteredResult = filterProjects(result)
+
+// Проверка результатов
+filteredResult.each { clusterKey, items ->
+    println "Кластер: $clusterKey, Элементов: ${items.size()}"
+}
