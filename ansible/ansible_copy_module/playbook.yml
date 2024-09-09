@@ -50,3 +50,11 @@ def generateASClusterChart(Map totalAS, Map testAS, Map prodAS) {
     totalAS = renameEmptyKey(totalAS)
     testAS = renameEmptyKey(testAS)
     prodAS = renameEmptyKey(prodAS)
+
+
+def processEmptyKey = { map ->
+    def result = map.collectEntries { k, v ->
+        [(k ?: "Без кластера"): v]
+    }
+    return result
+}
