@@ -1,318 +1,38 @@
-// Реальные данные для диаграммы
-def chartData = [
-    ["без плагина", 24],
-    ["3.3", 43],
-    ["3.4", 40],
-    ["3.5", 64]
-]
-
-
-
-
-// Генерация содержимого таблицы
-def tableContent = new StringBuilder()
-tableContent.append("<tr><th>версия</th><th>количество</th></tr>")
-chartData.each { row ->
-    tableContent.append("<tr><td>${row[0]}</td><td>${row[1]}</td></tr>")
-}
-
-// Формирование HTML с макросом "Диаграмма из таблицы" и встроенной таблицей данных
-def html = """
-<ac:structured-macro ac:name="chart-from-table">
-  <ac:parameter ac:name="type">donut</ac:parameter>
-  <ac:parameter ac:name="title">Распределение версий</ac:parameter>
-  <ac:parameter ac:name="width">500</ac:parameter>
-  <ac:parameter ac:name="height">400</ac:parameter>
-  <ac:parameter ac:name="columns">1,2</ac:parameter>
-  <ac:rich-text-body>
-    <table>
-      <tbody>
-        ${tableContent}
-      </tbody>
-    </table>
-  </ac:rich-text-body>
-</ac:structured-macro>
-"""
-
-// Вывод сформированного HTML
-println(html)
-
-
-
-def filterProjects(Map data) {
-    def filteredData = [:]
+def generateASClusterChart(Map totalAS, Map testAS, Map prodAS) {
+    def allClusters = (totalAS.keySet() + testAS.keySet() + prodAS.keySet()).unique().sort()
     
-    data.each { clusterKey, items ->
-        filteredData[clusterKey] = items.findAll { item ->
-            !(item[""]?.contains("") || item[""]?.contains(""))
-        }
+    // Генерация содержимого таблицы
+    def tableContent = new StringBuilder()
+    tableContent.append("<tr><th>Кластер</th><th>Цель</th><th>IFT</th><th>П</th></tr>")
+    allClusters.each { cluster ->
+        tableContent.append("<tr>")
+        tableContent.append("<td>${cluster}</td>")
+        tableContent.append("<td>${totalAS.getOrDefault(cluster, 0)}</td>")
+        tableContent.append("<td>${testAS.getOrDefault(cluster, 0)}</td>")
+        tableContent.append("<td>${prodAS.getOrDefault(cluster, 0)}</td>")
+        tableContent.append("</tr>")
     }
     
-    return filteredData
-}
-
-// Применение фильтра
-def filteredResult = filterProjects(result)
-
-
-
-
-def filterProjects(Map data) {
-    def filteredData = [:]
+    // Формирование HTML с макросом "Диаграмма из таблицы"
+    def html = """
+    <ac:structured-macro ac:name="chart-from-table">
+        <ac:parameter ac:name="type">column</ac:parameter>
+        <ac:parameter ac:name="title">Количество  по кластерам</ac:parameter>
+        <ac:parameter ac:name="width">100%</ac:parameter>
+        <ac:parameter ac:name="height">500</ac:parameter>
+        <ac:parameter ac:name="is3d">true</ac:parameter>
+        <ac:parameter ac:name="legend-position">right</ac:parameter>
+        <ac:parameter ac:name="hide-data">true</ac:parameter>
+        <ac:parameter ac:name="align">center</ac:parameter>
+        <ac:rich-text-body>
+            <table>
+                <tbody>
+                    ${tableContent}
+                </tbody>
+            </table>
+        </ac:rich-text-body>
+    </ac:structured-macro>
+    """
     
-    data.each { clusterKey, items ->
-        filteredData[clusterKey] = items.findAll { item ->
-            !(item["Наименование"]?.contains("") || item[""]?.contains(""))
-        }
-    }
-    
-    return filteredData
-}
-
-// Применение фильтра
-def filteredResult = filterProjects(result)
-
-
-def countOpenshiftClusters(Map filteredData) {
-    def openshiftClusters = filteredData.keySet().findAll { clusterKey ->
-        !clusterKey.contains('k8s')
-    }
-    
-    return openshiftClusters.size()
-}
-
-def totalOpenshiftClusters = countOpenshiftClusters(filteredResult)
-
------------------------------------
-
-
-def filterProjects(Map data) {
-    def filteredData = [:]
-    def removedCount = 0
-
-    data.each { clusterKey, items ->
-        filteredData[clusterKey] = items.findAll { item ->
-            def keepItem = !(item["НаС"]?.toLowerCase()?.contains("") || 
-                             item[""]?.toLowerCase()?.contains(""))
-            if (!keepItem) removedCount++
-            return keepItem
-        }
-    }
-
-    println "Удалено элементов: $removedCount"
-    return filteredData
-}
-
-// Применение фильтра
-def filteredResult = filterProjects(result)
-
-// Проверка результатов
-filteredResult.each { clusterKey, items ->
-    println "Кластер: $clusterKey, Элементов: ${items.size()}"
-}
-
-
-
-
-
-// Реальные данные для диаграммы
-def chartData = [
-    ["без плагина", 24],
-    ["3.3", 43],
-    ["3.4", 40],
-    ["3.5", 64]
-]
-
-// Генерация содержимого таблицы
-def tableContent = new StringBuilder()
-tableContent.append("<tr><th>версия</th><th>количество</th></tr>")
-chartData.each { row ->
-    tableContent.append("<tr><td>${row[0]}</td><td>${row[1]}</td></tr>")
-}
-
-// Формирование HTML с макросом "Диаграмма из таблицы" и встроенной таблицей данных
-def html = """
-<ac:structured-macro ac:name="chart-from-table">
-  <ac:parameter ac:name="type">donut</ac:parameter>
-  <ac:parameter ac:name="title">Распределение версий</ac:parameter>
-  <ac:parameter ac:name="width">500</ac:parameter>
-  <ac:parameter ac:name="height">400</ac:parameter>
-  <ac:parameter ac:name="columns">1,2</ac:parameter>
-  <ac:rich-text-body>
-    <table>
-      <tbody>
-        ${tableContent}
-      </tbody>
-    </table>
-  </ac:rich-text-body>
-</ac:structured-macro>
-"""
-
-// Вывод сформированного HTML
-println(html)
-
-
-
-def filterProjects(Map data) {
-    def filteredData = [:]
-    
-    data.each { clusterKey, items ->
-        filteredData[clusterKey] = items.findAll { item ->
-            !(item[""]?.contains("") || item[""]?.contains(""))
-        }
-    }
-    
-    return filteredData
-}
-
-// Применение фильтра
-def filteredResult = filterProjects(result)
-
-
-
-
-def filterProjects(Map data) {
-    def filteredData = [:]
-    
-    data.each { clusterKey, items ->
-        filteredData[clusterKey] = items.findAll { item ->
-            !(item["Наименование"]?.contains("") || item[""]?.contains(""))
-        }
-    }
-    
-    return filteredData
-}
-
-// Применение фильтра
-def filteredResult = filterProjects(result)
-
-
-def countOpenshiftClusters(Map filteredData) {
-    def openshiftClusters = filteredData.keySet().findAll { clusterKey ->
-        !clusterKey.contains('k8s')
-    }
-    
-    return openshiftClusters.size()
-}
-
-def totalOpenshiftClusters = countOpenshiftClusters(filteredResult)
-
------------------------------------
-
-
-def filterProjects(Map data) {
-    def filteredData = [:]
-    def removedCount = 0
-
-    data.each { clusterKey, items ->
-        filteredData[clusterKey] = items.findAll { item ->
-            def keepItem = !(item["НаС"]?.toLowerCase()?.contains("") || 
-                             item[""]?.toLowerCase()?.contains(""))
-            if (!keepItem) removedCount++
-            return keepItem
-        }
-    }
-
-    println "Удалено элементов: $removedCount"
-    return filteredData
-}
-
-// Применение фильтра
-def filteredResult = filterProjects(result)
-
-// Проверка результатов
-filteredResult.each { clusterKey, items ->
-    println "Кластер: $clusterKey, Элементов: ${items.size()}"
-}
-
-
-
-
-
-
-
-
-
-
-def countPluginVersions(Map clusterData) {
-    def pluginVersionCounts = [:]
-
-    clusterData.each { clusterKey, clusterInfo ->
-        // Предполагаем, что clusterInfo - это список с одним элементом
-        def plugins = clusterInfo[0].plugins
-
-        if (plugins) {
-            plugins.each { pluginString ->
-                def (pluginName, version) = pluginString.split(':')
-                
-                if (!pluginVersionCounts.containsKey(pluginName)) {
-                    pluginVersionCounts[pluginName] = [:]
-                }
-                
-                if (!pluginVersionCounts[pluginName].containsKey(version)) {
-                    pluginVersionCounts[pluginName][version] = 0
-                }
-                
-                pluginVersionCounts[pluginName][version]++
-            }
-        }
-    }
-
-    return pluginVersionCounts
-}
-
-
-
-def countUniquePluginVersions(Map clusterData) {
-    def pluginVersionCounts = [:]
-
-    clusterData.each { clusterKey, clusterInfo ->
-        def uniquePlugins = clusterInfo[0].plugins?.toSet() ?: []
-
-        uniquePlugins.each { pluginString ->
-            def (pluginName, version) = pluginString.split(':')
-            
-            if (!pluginVersionCounts.containsKey(pluginName)) {
-                pluginVersionCounts[pluginName] = [:]
-            }
-            
-            if (!pluginVersionCounts[pluginName].containsKey(version)) {
-                pluginVersionCounts[pluginName][version] = 0
-            }
-            
-            pluginVersionCounts[pluginName][version]++
-        }
-    }
-
-    return pluginVersionCounts
-}
-
-
-
-def countPluginsByTribeCluster(Map clusterData) {
-    def pluginCountByTribe = [:]
-
-    clusterData.each { clusterKey, clusterItems ->
-        clusterItems.each { item ->
-            def tribeCluster = item['Кб']
-            def plugins = item.plugins
-
-            if (!pluginCountByTribe.containsKey(tribeCluster)) {
-                pluginCountByTribe[tribeCluster] = [:]
-            }
-
-            if (plugins) {
-                def uniquePlugins = plugins.collect { it.split(':')[0] }.unique()
-                
-                uniquePlugins.each { pluginName ->
-                    if (!pluginCountByTribe[tribeCluster].containsKey(pluginName)) {
-                        pluginCountByTribe[tribeCluster][pluginName] = 0
-                    }
-                    pluginCountByTribe[tribeCluster][pluginName]++
-                }
-            }
-        }
-    }
-
-    return pluginCountByTribe
+    return html
 }
