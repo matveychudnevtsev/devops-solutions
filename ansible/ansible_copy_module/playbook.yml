@@ -286,3 +286,33 @@ def countUniquePluginVersions(Map clusterData) {
 
     return pluginVersionCounts
 }
+
+
+
+def countPluginsByTribeCluster(Map clusterData) {
+    def pluginCountByTribe = [:]
+
+    clusterData.each { clusterKey, clusterItems ->
+        clusterItems.each { item ->
+            def tribeCluster = item['Кб']
+            def plugins = item.plugins
+
+            if (!pluginCountByTribe.containsKey(tribeCluster)) {
+                pluginCountByTribe[tribeCluster] = [:]
+            }
+
+            if (plugins) {
+                def uniquePlugins = plugins.collect { it.split(':')[0] }.unique()
+                
+                uniquePlugins.each { pluginName ->
+                    if (!pluginCountByTribe[tribeCluster].containsKey(pluginName)) {
+                        pluginCountByTribe[tribeCluster][pluginName] = 0
+                    }
+                    pluginCountByTribe[tribeCluster][pluginName]++
+                }
+            }
+        }
+    }
+
+    return pluginCountByTribe
+}
