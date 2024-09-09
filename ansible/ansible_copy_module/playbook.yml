@@ -260,3 +260,29 @@ def countPluginVersions(Map clusterData) {
 
     return pluginVersionCounts
 }
+
+
+
+def countUniquePluginVersions(Map clusterData) {
+    def pluginVersionCounts = [:]
+
+    clusterData.each { clusterKey, clusterInfo ->
+        def uniquePlugins = clusterInfo[0].plugins?.toSet() ?: []
+
+        uniquePlugins.each { pluginString ->
+            def (pluginName, version) = pluginString.split(':')
+            
+            if (!pluginVersionCounts.containsKey(pluginName)) {
+                pluginVersionCounts[pluginName] = [:]
+            }
+            
+            if (!pluginVersionCounts[pluginName].containsKey(version)) {
+                pluginVersionCounts[pluginName][version] = 0
+            }
+            
+            pluginVersionCounts[pluginName][version]++
+        }
+    }
+
+    return pluginVersionCounts
+}
