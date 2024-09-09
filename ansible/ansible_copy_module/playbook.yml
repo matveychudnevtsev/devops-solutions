@@ -36,3 +36,17 @@ def generateASClusterChart(Map totalAS, Map testAS, Map prodAS) {
     
     return html
 }
+
+
+ def renameEmptyKey = { map ->
+        if (map.containsKey("")) {
+            def value = map.remove("")
+            map.put("Без кластера", value)
+        }
+        return map
+    }
+
+    // Переименовываем пустые ключи во всех мапах
+    totalAS = renameEmptyKey(totalAS)
+    testAS = renameEmptyKey(testAS)
+    prodAS = renameEmptyKey(prodAS)
