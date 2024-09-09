@@ -139,3 +139,28 @@ def html = """
   </ac:rich-text-body>
 </ac:structured-macro>
 """
+
+
+
+----------------
+
+
+def allClusters = (totalAS.keySet() + testAS.keySet() + prodAS.keySet()).unique().sort { a, b ->
+    if (a.empty && b.empty) return 0
+    if (a.empty) return 1
+    if (b.empty) return -1
+    return a.compareTo(b)
+}
+
+// Генерация содержимого таблицы
+def tableContent = new StringBuilder()
+tableContent.append("<tr><th>Кластер</th><th>Цель</th><th>IFT</th><th>ПРОМ</th></tr>")
+allClusters.each { cluster ->
+    tableContent.append("<tr>")
+    tableContent.append("<td>${cluster.empty ? 'Без кластера' : cluster}</td>")
+    tableContent.append("<td>${totalAS.containsKey(cluster) ? totalAS[cluster] : 0}</td>")
+    tableContent.append("<td>${testAS.containsKey(cluster) ? testAS[cluster] : 0}</td>")
+    tableContent.append("<td>${prodAS.containsKey(cluster) ? prodAS[cluster] : 0}</td>")
+    tableContent.append("</tr>")
+}
+
