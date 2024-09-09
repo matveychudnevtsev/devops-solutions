@@ -6,6 +6,9 @@ def chartData = [
     ["3.5", 64]
 ]
 
+
+
+
 // Генерация содержимого таблицы
 def tableContent = new StringBuilder()
 tableContent.append("<tr><th>версия</th><th>количество</th></tr>")
@@ -106,4 +109,154 @@ def filteredResult = filterProjects(result)
 // Проверка результатов
 filteredResult.each { clusterKey, items ->
     println "Кластер: $clusterKey, Элементов: ${items.size()}"
+}
+
+
+
+
+
+// Реальные данные для диаграммы
+def chartData = [
+    ["без плагина", 24],
+    ["3.3", 43],
+    ["3.4", 40],
+    ["3.5", 64]
+]
+
+// Генерация содержимого таблицы
+def tableContent = new StringBuilder()
+tableContent.append("<tr><th>версия</th><th>количество</th></tr>")
+chartData.each { row ->
+    tableContent.append("<tr><td>${row[0]}</td><td>${row[1]}</td></tr>")
+}
+
+// Формирование HTML с макросом "Диаграмма из таблицы" и встроенной таблицей данных
+def html = """
+<ac:structured-macro ac:name="chart-from-table">
+  <ac:parameter ac:name="type">donut</ac:parameter>
+  <ac:parameter ac:name="title">Распределение версий</ac:parameter>
+  <ac:parameter ac:name="width">500</ac:parameter>
+  <ac:parameter ac:name="height">400</ac:parameter>
+  <ac:parameter ac:name="columns">1,2</ac:parameter>
+  <ac:rich-text-body>
+    <table>
+      <tbody>
+        ${tableContent}
+      </tbody>
+    </table>
+  </ac:rich-text-body>
+</ac:structured-macro>
+"""
+
+// Вывод сформированного HTML
+println(html)
+
+
+
+def filterProjects(Map data) {
+    def filteredData = [:]
+    
+    data.each { clusterKey, items ->
+        filteredData[clusterKey] = items.findAll { item ->
+            !(item[""]?.contains("") || item[""]?.contains(""))
+        }
+    }
+    
+    return filteredData
+}
+
+// Применение фильтра
+def filteredResult = filterProjects(result)
+
+
+
+
+def filterProjects(Map data) {
+    def filteredData = [:]
+    
+    data.each { clusterKey, items ->
+        filteredData[clusterKey] = items.findAll { item ->
+            !(item["Наименование"]?.contains("") || item[""]?.contains(""))
+        }
+    }
+    
+    return filteredData
+}
+
+// Применение фильтра
+def filteredResult = filterProjects(result)
+
+
+def countOpenshiftClusters(Map filteredData) {
+    def openshiftClusters = filteredData.keySet().findAll { clusterKey ->
+        !clusterKey.contains('k8s')
+    }
+    
+    return openshiftClusters.size()
+}
+
+def totalOpenshiftClusters = countOpenshiftClusters(filteredResult)
+
+-----------------------------------
+
+
+def filterProjects(Map data) {
+    def filteredData = [:]
+    def removedCount = 0
+
+    data.each { clusterKey, items ->
+        filteredData[clusterKey] = items.findAll { item ->
+            def keepItem = !(item["НаС"]?.toLowerCase()?.contains("") || 
+                             item[""]?.toLowerCase()?.contains(""))
+            if (!keepItem) removedCount++
+            return keepItem
+        }
+    }
+
+    println "Удалено элементов: $removedCount"
+    return filteredData
+}
+
+// Применение фильтра
+def filteredResult = filterProjects(result)
+
+// Проверка результатов
+filteredResult.each { clusterKey, items ->
+    println "Кластер: $clusterKey, Элементов: ${items.size()}"
+}
+
+
+
+
+
+
+
+
+
+
+def countPluginVersions(Map clusterData) {
+    def pluginVersionCounts = [:]
+
+    clusterData.each { clusterKey, clusterInfo ->
+        // Предполагаем, что clusterInfo - это список с одним элементом
+        def plugins = clusterInfo[0].plugins
+
+        if (plugins) {
+            plugins.each { pluginString ->
+                def (pluginName, version) = pluginString.split(':')
+                
+                if (!pluginVersionCounts.containsKey(pluginName)) {
+                    pluginVersionCounts[pluginName] = [:]
+                }
+                
+                if (!pluginVersionCounts[pluginName].containsKey(version)) {
+                    pluginVersionCounts[pluginName][version] = 0
+                }
+                
+                pluginVersionCounts[pluginName][version]++
+            }
+        }
+    }
+
+    return pluginVersionCounts
 }
