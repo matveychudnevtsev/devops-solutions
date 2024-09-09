@@ -58,3 +58,14 @@ def processEmptyKey = { map ->
     }
     return result
 }
+
+
+
+def processMap(map) {
+    def result = [:]
+    map.each { key, value ->
+        def newKey = key ? key : "Без кластера"
+        result[newKey] = value
+    }
+    return result
+}
