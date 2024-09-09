@@ -1,166 +1,31 @@
-def generateASClusterChart(Map totalAS, Map testAS, Map prodAS) {
-    def allClusters = (totalAS.keySet() + testAS.keySet() + prodAS.keySet()).unique().sort()
-    
-    // Генерация содержимого таблицы
-    def tableContent = new StringBuilder()
-    tableContent.append("<tr><th>Кластер</th><th>Цель</th><th>IFT</th><th>П</th></tr>")
-    allClusters.each { cluster ->
-        tableContent.append("<tr>")
-        tableContent.append("<td>${cluster}</td>")
-        tableContent.append("<td>${totalAS.getOrDefault(cluster, 0)}</td>")
-        tableContent.append("<td>${testAS.getOrDefault(cluster, 0)}</td>")
-        tableContent.append("<td>${prodAS.getOrDefault(cluster, 0)}</td>")
-        tableContent.append("</tr>")
+def allClusters = new HashSet()
+allClusters.addAll(totalAS.keySet())
+allClusters.addAll(testAS.keySet())
+allClusters.addAll(prodAS.keySet())
+
+// Преобразование в список и сортировка
+def sortedClusters = new ArrayList(allClusters)
+Collections.sort(sortedClusters, new Comparator() {
+    int compare(a, b) {
+        if (a == "" && b == "") return 0
+        if (a == "") return 1
+        if (b == "") return -1
+        return a.compareTo(b)
     }
-    
-    // Формирование HTML с макросом "Диаграмма из таблицы"
-    def html = """
-    <ac:structured-macro ac:name="chart-from-table">
-        <ac:parameter ac:name="type">column</ac:parameter>
-        <ac:parameter ac:name="title">Количество  по кластерам</ac:parameter>
-        <ac:parameter ac:name="width">100%</ac:parameter>
-        <ac:parameter ac:name="height">500</ac:parameter>
-        <ac:parameter ac:name="is3d">true</ac:parameter>
-        <ac:parameter ac:name="legend-position">right</ac:parameter>
-        <ac:parameter ac:name="hide-data">true</ac:parameter>
-        <ac:parameter ac:name="align">center</ac:parameter>
-        <ac:rich-text-body>
-            <table>
-                <tbody>
-                    ${tableContent}
-                </tbody>
-            </table>
-        </ac:rich-text-body>
-    </ac:structured-macro>
-    """
-    
-    return html
-}
-
-
- def renameEmptyKey = { map ->
-        if (map.containsKey("")) {
-            def value = map.remove("")
-            map.put("Без кластера", value)
-        }
-        return map
-    }
-
-    // Переименовываем пустые ключи во всех мапах
-    totalAS = renameEmptyKey(totalAS)
-    testAS = renameEmptyKey(testAS)
-    prodAS = renameEmptyKey(prodAS)
-
-
-def processEmptyKey = { map ->
-    def result = map.collectEntries { k, v ->
-        [(k ?: "Без кластера"): v]
-    }
-    return result
-}
-
-
-
-def processMap(map) {
-    def result = [:]
-    map.each { key, value ->
-        def newKey = key ? key : "Без кластера"
-        result[newKey] = value
-    }
-    return result
-}
-
-
-def allClusters = [] as Set
-
-totalAS.each { key, value ->
-    allClusters.add(key ? key : "Без кластера")
-}
-testAS.each { key, value ->
-    allClusters.add(key ? key : "Без кластера")
-}
-prodAS.each { key, value ->
-    allClusters.add(key ? key : "Без кластера")
-}
-
-allClusters = allClusters.sort()
+})
 
 // Генерация содержимого таблицы
 def tableContent = new StringBuilder()
 tableContent.append("<tr><th>Кластер</th><th>Цель</th><th>IFT</th><th>ПРОМ</th></tr>")
-allClusters.each { cluster ->
-    def totalValue = totalAS[cluster] ?: (totalAS[""] && cluster == "Без кластера" ? totalAS[""] : 0)
-    def testValue = testAS[cluster] ?: (testAS[""] && cluster == "Без кластера" ? testAS[""] : 0)
-    def prodValue = prodAS[cluster] ?: (prodAS[""] && cluster == "Без кластера" ? prodAS[""] : 0)
+sortedClusters.each { cluster ->
+    def totalValue = totalAS.containsKey(cluster) ? totalAS[cluster] : 0
+    def testValue = testAS.containsKey(cluster) ? testAS[cluster] : 0
+    def prodValue = prodAS.containsKey(cluster) ? prodAS[cluster] : 0
     
     tableContent.append("<tr>")
-    tableContent.append("<td>${cluster}</td>")
+    tableContent.append("<td>${cluster == '' ? 'Без кластера' : cluster}</td>")
     tableContent.append("<td>${totalValue}</td>")
     tableContent.append("<td>${testValue}</td>")
     tableContent.append("<td>${prodValue}</td>")
     tableContent.append("</tr>")
 }
-
-
-------------
-
-
-def allClusters = (totalAS.keySet() + testAS.keySet() + prodAS.keySet()).unique().sort()
-
-// Генерация содержимого таблицы
-def tableContent = new StringBuilder()
-tableContent.append("<tr><th>Кластер</th><th>Цель</th><th>IFT</th><th>ПРОМ</th></tr>")
-allClusters.each { cluster ->
-    tableContent.append("<tr>")
-    tableContent.append("<td>${cluster}</td>")
-    tableContent.append("<td>${totalAS.getOrDefault(cluster, 0)}</td>")
-    tableContent.append("<td>${testAS.getOrDefault(cluster, 0)}</td>")
-    tableContent.append("<td>${prodAS.getOrDefault(cluster, 0)}</td>")
-    tableContent.append("</tr>")
-}
-
-// Формирование HTML с макросом "Диаграмма из таблицы" и встроенной таблицей данных
-def html = """
-<ac:structured-macro ac:name="chart-from-table">
-  <ac:parameter ac:name="type">column</ac:parameter>
-  <ac:parameter ac:name="title">Количество АС по кластерам</ac:parameter>
-  <ac:parameter ac:name="height">500</ac:parameter>
-  <ac:parameter ac:name="columns">1,2,3,4</ac:parameter>
-  <ac:parameter ac:name="is3d">true</ac:parameter>
-  <ac:parameter ac:name="alignment">center</ac:parameter>
-  <ac:parameter ac:name="legend-position">right</ac:parameter>
-  <ac:parameter ac:name="hide-table">true</ac:parameter>
-  <ac:rich-text-body>
-    <table>
-      <tbody>
-        ${tableContent}
-      </tbody>
-    </table>
-  </ac:rich-text-body>
-</ac:structured-macro>
-"""
-
-
-
-----------------
-
-
-def allClusters = (totalAS.keySet() + testAS.keySet() + prodAS.keySet()).unique().sort { a, b ->
-    if (a.empty && b.empty) return 0
-    if (a.empty) return 1
-    if (b.empty) return -1
-    return a.compareTo(b)
-}
-
-// Генерация содержимого таблицы
-def tableContent = new StringBuilder()
-tableContent.append("<tr><th>Кластер</th><th>Цель</th><th>IFT</th><th>ПРОМ</th></tr>")
-allClusters.each { cluster ->
-    tableContent.append("<tr>")
-    tableContent.append("<td>${cluster.empty ? 'Без кластера' : cluster}</td>")
-    tableContent.append("<td>${totalAS.containsKey(cluster) ? totalAS[cluster] : 0}</td>")
-    tableContent.append("<td>${testAS.containsKey(cluster) ? testAS[cluster] : 0}</td>")
-    tableContent.append("<td>${prodAS.containsKey(cluster) ? prodAS[cluster] : 0}</td>")
-    tableContent.append("</tr>")
-}
-
