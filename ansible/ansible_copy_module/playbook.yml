@@ -69,3 +69,34 @@ def processMap(map) {
     }
     return result
 }
+
+
+def allClusters = [] as Set
+
+totalAS.each { key, value ->
+    allClusters.add(key ? key : "Без кластера")
+}
+testAS.each { key, value ->
+    allClusters.add(key ? key : "Без кластера")
+}
+prodAS.each { key, value ->
+    allClusters.add(key ? key : "Без кластера")
+}
+
+allClusters = allClusters.sort()
+
+// Генерация содержимого таблицы
+def tableContent = new StringBuilder()
+tableContent.append("<tr><th>Кластер</th><th>Цель</th><th>IFT</th><th>ПРОМ</th></tr>")
+allClusters.each { cluster ->
+    def totalValue = totalAS[cluster] ?: (totalAS[""] && cluster == "Без кластера" ? totalAS[""] : 0)
+    def testValue = testAS[cluster] ?: (testAS[""] && cluster == "Без кластера" ? testAS[""] : 0)
+    def prodValue = prodAS[cluster] ?: (prodAS[""] && cluster == "Без кластера" ? prodAS[""] : 0)
+    
+    tableContent.append("<tr>")
+    tableContent.append("<td>${cluster}</td>")
+    tableContent.append("<td>${totalValue}</td>")
+    tableContent.append("<td>${testValue}</td>")
+    tableContent.append("<td>${prodValue}</td>")
+    tableContent.append("</tr>")
+}
