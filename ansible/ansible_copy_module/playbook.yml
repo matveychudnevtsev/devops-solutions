@@ -56,3 +56,30 @@ sortedClusters.each { cluster ->
     tableContent.append("<td>${prodValue}</td>")
     tableContent.append("</tr>")
 }
+
+
+def allClusters = mapaPoAsClusters.keySet() + mapaPoAsClustersTest.keySet() + mapaPoAsClustersProm.keySet()
+
+// Преобразование в список и простая сортировка
+def sortedClusters = allClusters.toList().sort()
+
+// Перемещаем пустую строку (если она есть) в конец списка
+if (sortedClusters.remove("")) {
+    sortedClusters.add("")
+}
+
+// Генерация содержимого таблицы
+def tableContent = new StringBuilder()
+tableContent.append("<tr><th>Кластер</th><th>Цель</th><th>IFT</th><th>ПРОМ</th></tr>")
+sortedClusters.each { cluster ->
+    def totalValue = mapaPoAsClusters.containsKey(cluster) ? mapaPoAsClusters[cluster] : 0
+    def testValue = mapaPoAsClustersTest.containsKey(cluster) ? mapaPoAsClustersTest[cluster] : 0
+    def prodValue = mapaPoAsClustersProm.containsKey(cluster) ? mapaPoAsClustersProm[cluster] : 0
+    
+    tableContent.append("<tr>")
+    tableContent.append("<td>${cluster == '' ? 'Без кластера' : cluster}</td>")
+    tableContent.append("<td>${totalValue}</td>")
+    tableContent.append("<td>${testValue}</td>")
+    tableContent.append("<td>${prodValue}</td>")
+    tableContent.append("</tr>")
+}
