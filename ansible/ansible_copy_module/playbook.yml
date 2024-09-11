@@ -63,3 +63,40 @@ finalHtml += "\n" + pluginHtmls
         tableContent.append("<tr><td>${version}</td><td>${count}</td></tr>")
     }
 
+-------------------------
+
+
+def generatePluginHtml(String pluginName, Map pluginData) {
+    if (!pluginData.containsKey(pluginName)) {
+        return "" // Возвращаем пустую строку, если данных для плагина нет
+    }
+
+    def versions = pluginData[pluginName]
+    def tableContent = new StringBuilder()
+    tableContent.append("<tr><th>Версия</th><th>Количество</th></tr>")
+    
+    versions.each { versionInfo ->
+        def (version, count) = versionInfo.split(':')
+        tableContent.append("<tr><td>${version.trim()}</td><td>${count.trim()}</td></tr>")
+    }
+
+    return """
+    <ac:structured-macro ac:name="chart-from-table">
+      <ac:parameter ac:name="type">column</ac:parameter>
+      <ac:parameter ac:name="title">Распределение версий плагина ${pluginName}</ac:parameter>
+      <ac:parameter ac:name="height">500</ac:parameter>
+      <ac:parameter ac:name="columns">1,2</ac:parameter>
+      <ac:parameter ac:name="is3d">true</ac:parameter>
+      <ac:parameter ac:name="alignment">center</ac:parameter>
+      <ac:parameter ac:name="legend-position">right</ac:parameter>
+      <ac:parameter ac:name="hide-table">true</ac:parameter>
+      <ac:rich-text-body>
+        <table>
+          <tbody>
+            ${tableContent}
+          </tbody>
+        </table>
+      </ac:rich-text-body>
+    </ac:structured-macro>
+    """
+}
