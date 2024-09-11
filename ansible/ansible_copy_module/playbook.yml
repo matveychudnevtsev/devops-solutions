@@ -83,3 +83,85 @@ sortedClusters.each { cluster ->
     tableContent.append("<td>${prodValue}</td>")
     tableContent.append("</tr>")
 }
+
+
+
+def allClustersTest = mapaPoClusteramTestAll.keySet() + mapaPoClusteramTest.keySet()
+def sortedClustersTest = allClustersTest.toList().sort()
+if (sortedClustersTest.remove("")) {
+    sortedClustersTest.add("")
+}
+
+def tableContentTest = new StringBuilder()
+tableContentTest.append("<tr><th>Кластер</th><th>Цель</th><th>POT</th></tr>") // 
+sortedClustersTest.each { cluster ->
+    def totalValue = mapaPoClusteramTestAll.containsKey(cluster) ? mapaPoClusteramTestAll[cluster] : 0
+    def pvdotValue = mapaPoClusteramTest.containsKey(cluster) ? mapaPoClusteramTest[cluster] : 0
+    
+    tableContentTest.append("<tr>")
+    tableContentTest.append("<td>${cluster == '' ? 'Без кластера' : cluster}</td>")
+    tableContentTest.append("<td>${totalValue}</td>")
+    tableContentTest.append("<td>${pvtValue}</td>") //
+    tableContentTest.append("</tr>")
+}
+
+def htmlTest = """
+<ac:structured-macro ac:name="chart-from-table">
+  <ac:parameter ac:name="type">column</ac:parameter>
+  <ac:parameter ac:name="title">Количество А по кластерам (Тест)</ac:parameter>
+  <ac:parameter ac:name="height">500</ac:parameter>
+  <ac:parameter ac:name="columns">1,2,3</ac:parameter>
+  <ac:parameter ac:name="is3d">true</ac:parameter>
+  <ac:parameter ac:name="alignment">center</ac:parameter>
+  <ac:parameter ac:name="legend-position">right</ac:parameter>
+  <ac:parameter ac:name="hide-table">true</ac:parameter>
+  <ac:rich-text-body>
+    <table>
+      <tbody>
+        ${tableContentTest}
+      </tbody>
+    </table>
+  </ac:rich-text-body>
+</ac:structured-macro>
+"""
+
+// Для второй таблицы и диаграммы 
+def allClustersProm = mapaPoClusteramPm.keySet() + mapaPoClusteramPrmPOT.keySet() // 
+def sortedClustersProm = allClustersProm.toList().sort()
+if (sortedClustersProm.remove("")) {
+    sortedClustersProm.add("")
+}
+
+def tableContentProm = new StringBuilder()
+tableContentProm.append("<tr><th>Кластер</th><th>Цель</th><th>PV DOT</th></tr>")
+sortedClustersProm.each { cluster ->
+    def totalValue = mapaPoClusteramProm.containsKey(cluster) ? mapaPoClusteramProm[cluster] : 0
+    def pvdotValue = mapaPoClusteramPromPVDOT.containsKey(cluster) ? mapaPoClusteramPromPVDOT[cluster] : 0
+    
+    tableContentProm.append("<tr>")
+    tableContentProm.append("<td>${cluster == '' ? 'Без кластера' : cluster}</td>")
+    tableContentProm.append("<td>${totalValue}</td>")
+    tableContentProm.append("<td>${pvdotValue}</td>")
+    tableContentProm.append("</tr>")
+}
+
+def htmlProm = """
+<ac:structured-macro ac:name="chart-from-table">
+  <ac:parameter ac:name="type">column</ac:parameter>
+  <ac:parameter ac:name="title">Количество А по кластерам (П)</ac:parameter>
+  <ac:parameter ac:name="height">500</ac:parameter>
+  <ac:parameter ac:name="columns">1,2,3</ac:parameter>
+  <ac:parameter ac:name="is3d">true</ac:parameter>
+  <ac:parameter ac:name="alignment">center</ac:parameter>
+  <ac:parameter ac:name="legend-position">right</ac:parameter>
+  <ac:parameter ac:name="hide-table">true</ac:parameter>
+  <ac:rich-text-body>
+    <table>
+      <tbody>
+        ${tableContentProm}
+      </tbody>
+    </table>
+  </ac:rich-text-body>
+</ac:structured-macro>
+"""
+
