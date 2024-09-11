@@ -50,3 +50,16 @@ def pluginHtmls = pluginsToProcess.collect { pluginName ->
 
 // Добавляем pluginHtmls к finalHtml
 finalHtml += "\n" + pluginHtmls
+
+
+   def versions = pluginData[pluginName].keySet().sort { a, b ->
+        a.toLowerCase() <=> b.toLowerCase()
+    }
+
+    def tableContent = new StringBuilder()
+    tableContent.append("<tr><th>Версия</th><th>Количество</th></tr>")
+    versions.each { version ->
+        def count = pluginData[pluginName][version]
+        tableContent.append("<tr><td>${version}</td><td>${count}</td></tr>")
+    }
+
