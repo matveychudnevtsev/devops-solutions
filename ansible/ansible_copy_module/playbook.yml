@@ -1,1 +1,52 @@
 
+def pluginsToProcess 
+
+def generatePluginHtml(String pluginName, Map<String, Map<String, Integer>> pluginData) {
+    if (!pluginData.containsKey(pluginName)) {
+        return "" // Возвращаем пустую строку, если данных для плагина нет
+    }
+
+    def versions = pluginData[pluginName].keySet().sort { a, b ->
+        def vA = a.tokenize('.')
+        def vB = b.tokenize('.')
+        for (int i = 0; i < Math.min(vA.size(), vB.size()); i++) {
+            def cmp = vA[i].toInteger() <=> vB[i].toInteger()
+            if (cmp != 0) return cmp
+        }
+        vA.size() <=> vB.size()
+    }
+
+    def tableContent = new StringBuilder()
+    tableContent.append("<tr><th>Версия</th><th>Количество</th></tr>")
+    versions.each { version ->
+        def count = pluginData[pluginName][version]
+        tableContent.append("<tr><td>${version}</td><td>${count}</td></tr>")
+    }
+
+    return """
+    <ac:structured-macro ac:name="chart-from-table">
+      <ac:parameter ac:name="type">column</ac:parameter>
+      <ac:parameter ac:name="title">Распределение версий плагина ${pluginName}</ac:parameter>
+      <ac:parameter ac:name="height">500</ac:parameter>
+      <ac:parameter ac:name="columns">1,2</ac:parameter>
+      <ac:parameter ac:name="is3d">true</ac:parameter>
+      <ac:parameter ac:name="alignment">center</ac:parameter>
+      <ac:parameter ac:name="legend-position">right</ac:parameter>
+      <ac:parameter ac:name="hide-table">true</ac:parameter>
+      <ac:rich-text-body>
+        <table>
+          <tbody>
+            ${tableContent}
+          </tbody>
+        </table>
+      </ac:rich-text-body>
+    </ac:structured-macro>
+    """
+}
+
+def pluginHtmls = pluginsToProcess.collect { pluginName ->
+    generatePluginHtml(pluginName, mapaPoPlugins)
+}.join("\n")
+
+// Добавляем pluginHtmls к finalHtml
+finalHtml += "\n" + pluginHtmls
