@@ -1,47 +1,53 @@
 def processEnvoyFilters(rbacFilters) {
     log.infoCustom "Начало обработки Envoy фильтров. Количество фильтров: ${rbacFilters.size()}"
     def result = [:]
+    
     for (int i = 0; i < rbacFilters.size(); i++) {
         def filter = rbacFilters[i]
         log.infoCustom "Обработка фильтра ${i + 1}: ${filter.metadata.name}"
         def manifestName = filter.metadata.name
         def manifestMap = [:]
         def configPatches = filter.spec.configPatches
+        
         if (configPatches) {
             log.infoCustom "Найдены configPatches для ${manifestName}. Количество: ${configPatches.size()}"
+            
             for (int j = 0; j < configPatches.size(); j++) {
                 def patch = configPatches[j]
                 def rules = patch.patch?.value?.typed_config?.rules
+                
                 if (rules?.policies) {
-                    log.infoCustom "Найдены правила с политиками для ${manifestName}"
+                    log.infoCustom "Найдены политики для ${manifestName}"
                     def policies = rules.policies
                     def policyNames = policies.keySet() as List
+                    
                     log.infoCustom "Количество политик: ${policyNames.size()}"
                     for (int k = 0; k < policyNames.size(); k++) {
                         def policyName = policyNames[k]
                         log.infoCustom "Обработка политики: ${policyName}"
                         def policyValue = policies[policyName]
                         def regexList = []
+
+                        // Обработка principals
                         if (policyValue.principals) {
                             log.infoCustom "Найдены principals для политики ${policyName}. Количество: ${policyValue.principals.size()}"
+                            
                             for (int l = 0; l < policyValue.principals.size(); l++) {
                                 def principal = policyValue.principals[l]
-                                if (principal.or_ids?.ids) {
-                                    log.infoCustom "Найдены or_ids для principal ${l + 1}. Количество: ${principal.or_ids.ids.size()}"
-                                    for (int m = 0; m < principal.or_ids.ids.size(); m++) {
-                                        def id = principal.or_ids.ids[m]
-                                        if (id.header?.safe_regex_match?.regex) {
-                                            log.infoCustom "Найден regex: ${id.header.safe_regex_match.regex}"
-                                            regexList.add(id.header.safe_regex_match.regex)
-                                        }
-                                    }
+                                
+                                if (principal.header?.safe_regex_match?.regex) {
+                                    def regex = principal.header.safe_regex_match.regex
+                                    log.infoCustom "Найден regex для principal ${l + 1}: ${regex}"
+                                    regexList.add(regex)
                                 } else {
-                                    log.infoCustom "Не найдены or_ids для principal ${l + 1}"
+                                    log.infoCustom "Не найден regex для principal ${l + 1}"
                                 }
                             }
                         } else {
                             log.infoCustom "Не найдены principals для политики ${policyName}"
                         }
+
+                        // Добавление regexList в manifestMap
                         if (!regexList.isEmpty()) {
                             log.infoCustom "Добавлен regexList для политики ${policyName}. Количество regex: ${regexList.size()}"
                             manifestMap[policyName] = regexList
@@ -56,6 +62,8 @@ def processEnvoyFilters(rbacFilters) {
         } else {
             log.infoCustom "Не найдены configPatches для ${manifestName}"
         }
+
+        // Добавление manifestMap в result
         if (!manifestMap.isEmpty()) {
             log.infoCustom "Добавлен manifestMap для ${manifestName}"
             result[manifestName] = manifestMap
@@ -63,6 +71,7 @@ def processEnvoyFilters(rbacFilters) {
             log.infoCustom "manifestMap пуст для ${manifestName}"
         }
     }
+
     log.infoCustom "Завершение обработки Envoy фильтров. Результат: ${result}"
     return result
 }
