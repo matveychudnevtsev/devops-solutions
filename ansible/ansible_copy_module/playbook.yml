@@ -11,16 +11,16 @@ def addHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilters) 
             def regexCountInput = input(
                 id: "userInputRegexCount_${manifestName}_${prefix.replaceAll(/[\/]/, "_")}",
                 message: "Сколько регулярных выражений вы хотите добавить в ${manifestName} - ${prefix}?",
-                parameters: [intParam(name: "regexCount", defaultValue: 1, description: "Количество регулярных выражений для добавления")]
+                parameters: [string(name: "regexCount", defaultValue: "1", description: "Количество регулярных выражений для добавления")]
             )
-            def regexCount = regexCountInput['regexCount']
+            def regexCount = regexCountInput['regexCount'] as Integer // Преобразуем ввод в число
             log.infoCustom "Пользователь выбрал добавить ${regexCount} регулярных выражений для префикса ${prefix}"
 
             // Шаг 3: Пользователь вводит регулярные выражения
             def regexInputs = []
             for (int i = 1; i <= regexCount; i++) {
                 regexInputs.add(
-                    textParam(name: "regex_${i}", defaultValue: '', description: "Введите регулярное выражение ${i} для префикса ${prefix}")
+                    string(name: "regex_${i}", defaultValue: '', description: "Введите регулярное выражение ${i} для префикса ${prefix}")
                 )
             }
 
