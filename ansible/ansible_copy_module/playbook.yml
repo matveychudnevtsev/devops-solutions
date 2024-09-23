@@ -27,6 +27,28 @@ def processEnvoyFilters(rbacFilters) {
                         log.infoCustom "Обработка политики: ${policyName}"
                         def policyValue = policies[policyName]
                         def regexList = []
+                        def prefix = null
+
+                        // Обработка permissions для получения prefix
+                        if (policyValue.permissions) {
+                            for (int p = 0; p < policyValue.permissions.size(); p++) {
+                                def permission = policyValue.permissions[p]
+                                def andRules = permission.and_rules
+                                
+                                if (andRules?.rules) {
+                                    for (int r = 0; r < andRules.rules.size(); r++) {
+                                        def rule = andRules.rules[r]
+                                        
+                                        if (rule.url_path?.path?.prefix) {
+                                            prefix = rule.url_path.path.prefix
+                                            log.infoCustom "Найден prefix: ${prefix} для политики ${policyName}"
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            log.infoCustom "Не найдены permissions для политики ${policyName}"
+                        }
 
                         // Обработка principals
                         if (policyValue.principals) {
@@ -48,11 +70,11 @@ def processEnvoyFilters(rbacFilters) {
                         }
 
                         // Добавление regexList в manifestMap
-                        if (!regexList.isEmpty()) {
-                            log.infoCustom "Добавлен regexList для политики ${policyName}. Количество regex: ${regexList.size()}"
-                            manifestMap[policyName] = regexList
+                        if (prefix && !regexList.isEmpty()) {
+                            log.infoCustom "Добавлен regexList для prefix ${prefix}. Количество regex: ${regexList.size()}"
+                            manifestMap[prefix] = regexList
                         } else {
-                            log.infoCustom "regexList пуст для политики ${policyName}"
+                            log.infoCustom "prefix или regexList пуст для политики ${policyName}"
                         }
                     }
                 } else {
