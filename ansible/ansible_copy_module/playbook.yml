@@ -14,8 +14,10 @@ def deleteHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilter
                 regexChoices.add(booleanParam(name: "${prefix}_${regex}", defaultValue: false, description: regex))
             }
 
+            // Преобразуем ID в URL-безопасный формат
+            def safePrefix = prefix.replaceAll(/[\/]/, "_")
             def userInputRegex = input(
-                id: "userInputRegexDelete_${manifestName}_${prefix}",
+                id: "userInputRegexDelete_${manifestName}_${safePrefix}",
                 message: "Выберите regex для удаления в ${manifestName} - ${prefix}",
                 parameters: regexChoices
             )
