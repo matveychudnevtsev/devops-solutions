@@ -1,28 +1,41 @@
-def deleteHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilters) {
+def addHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilters) {
     selectedManifest.each { manifestName ->
+        // Шаг 1: Пользователь выбирает префиксы
         def selectedPrefixes = userInputPolicies[manifestName].findAll { k, v -> v == true }.keySet()
         def updatedFilter = envoyFilters.items.find { it.metadata.name == manifestName }
 
         selectedPrefixes.each { prefix ->
-            def currentRegexList = manifestsMap[manifestName][prefix]
-            def regexChoices = []
-            regexChoices.add(
-                separator(name: "separator_${prefix}", separatorStyle: "line", sectionHeader: "Выберите regex для удаления из ${manifestName} - ${prefix}")
-            )
+            log.infoCustom "Обработка добавления headers для префикса ${prefix} в ${manifestName}"
 
-            currentRegexList.each { regex ->
-                regexChoices.add(booleanParam(name: "${prefix}_${regex}", defaultValue: false, description: regex))
+            // Шаг 2: Пользователь выбирает, сколько regex добавить (дефолт 1)
+            def regexCountInput = input(
+                id: "userInputRegexCount_${manifestName}_${prefix.replaceAll(/[\/]/, "_")}",
+                message: "Сколько регулярных выражений вы хотите добавить в ${manifestName} - ${prefix}?",
+                parameters: [intParam(name: "regexCount", defaultValue: 1, description: "Количество регулярных выражений для добавления")]
+            )
+            def regexCount = regexCountInput['regexCount']
+            log.infoCustom "Пользователь выбрал добавить ${regexCount} регулярных выражений для префикса ${prefix}"
+
+            // Шаг 3: Пользователь вводит регулярные выражения
+            def regexInputs = []
+            for (int i = 1; i <= regexCount; i++) {
+                regexInputs.add(
+                    textParam(name: "regex_${i}", defaultValue: '', description: "Введите регулярное выражение ${i} для префикса ${prefix}")
+                )
             }
 
-            // Преобразуем ID в URL-безопасный формат
-            def safePrefix = prefix.replaceAll(/[\/]/, "_")
-            def userInputRegex = input(
-                id: "userInputRegexDelete_${manifestName}_${safePrefix}",
-                message: "Выберите regex для удаления в ${manifestName} - ${prefix}",
-                parameters: regexChoices
+            def userInputRegexes = input(
+                id: "userInputRegexAdd_${manifestName}_${prefix.replaceAll(/[\/]/, "_")}",
+                message: "Введите регулярные выражения для добавления в ${manifestName} - ${prefix}",
+                parameters: regexInputs
             )
+            
+            // Логируем введенные регулярные выражения
+            userInputRegexes.each { key, value ->
+                log.infoCustom "Пользователь ввел регулярное выражение: ${value}"
+            }
 
-            log.infoCustom "userInputRegex - ${userInputRegex}"
+            // Шаг 4: Добавление новых блоков header в соответствующие политики
             updatedFilter.spec.configPatches.each { patch ->
                 def rules = patch.patch?.value?.typed_config?.rules
                 if (rules?.policies) {
@@ -34,27 +47,28 @@ def deleteHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilter
                                 rule.url_path?.path?.prefix == prefix
                             }
                         }
-                        
+
                         if (prefixExists) {
-                            log.infoCustom "Обрабатывается политика с prefix: ${prefix}"
-                            def principalsToRemove = []
-                            policyValue.principals.each { principal ->
-                                if (principal.header?.safe_regex_match?.regex) {
-                                    def regexToCheck = principal.header.safe_regex_match.regex
-                                    log.infoCustom "Найден regex: ${regexToCheck}"
-                                    
-                                    // Добавляем principal для удаления, если выбран пользователем
-                                    if (userInputRegex["${prefix}_${regexToCheck}"] == true) {
-                                        log.infoCustom "Помечен для удаления regex: ${regexToCheck} для политики ${policyName} с prefix ${prefix}"
-                                        principalsToRemove.add(principal)
-                                    }
-                                }
+                            log.infoCustom "Добавляем headers в политику с prefix: ${prefix}"
+
+                            // Если у политики еще нет principals, создаем их как пустой список
+                            if (!policyValue.principals) {
+                                policyValue.principals = []
                             }
 
-                            // Удаление principals, если они были помечены
-                            if (!principalsToRemove.isEmpty()) {
-                                policyValue.principals.removeAll(principalsToRemove)
-                                log.infoCustom "Удалены ${principalsToRemove.size()} principals из политики ${policyName} с prefix ${prefix}"
+                            // Добавляем каждый введенный regex как новый блок header
+                            userInputRegexes.each { key, regex ->
+                                def newPrincipal = [
+                                    header: [
+                                        name: "x-forwarded-client-cert",
+                                        safe_regex_match: [
+                                            google_re2: [max_program_size: '4294967295'],
+                                            regex: regex
+                                        ]
+                                    ]
+                                ]
+                                policyValue.principals.add(newPrincipal)
+                                log.infoCustom "Добавлен новый header с regex: ${regex} в префикс ${prefix}"
                             }
                         }
                     }
