@@ -1,99 +1,56 @@
-def processEnvoyFilters(rbacFilters) {
-    log.infoCustom "Начало обработки Envoy фильтров. Количество фильтров: ${rbacFilters.size()}"
-    def result = [:]
-    
-    for (int i = 0; i < rbacFilters.size(); i++) {
-        def filter = rbacFilters[i]
-        log.infoCustom "Обработка фильтра ${i + 1}: ${filter.metadata.name}"
-        def manifestName = filter.metadata.name
-        def manifestMap = [:]
-        def configPatches = filter.spec.configPatches
-        
-        if (configPatches) {
-            log.infoCustom "Найдены configPatches для ${manifestName}. Количество: ${configPatches.size()}"
-            
-            for (int j = 0; j < configPatches.size(); j++) {
-                def patch = configPatches[j]
-                def rules = patch.patch?.value?.typed_config?.rules
-                
-                if (rules?.policies) {
-                    log.infoCustom "Найдены политики для ${manifestName}"
-                    def policies = rules.policies
-                    def policyNames = policies.keySet() as List
-                    
-                    log.infoCustom "Количество политик: ${policyNames.size()}"
-                    for (int k = 0; k < policyNames.size(); k++) {
-                        def policyName = policyNames[k]
-                        log.infoCustom "Обработка политики: ${policyName}"
-                        def policyValue = policies[policyName]
-                        def regexList = []
-                        def prefix = null
+def deleteHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilters) {
+    selectedManifest.each { manifestName ->
+        def selectedPrefixes = userInputPolicies[manifestName].findAll { k, v -> v == true }.keySet()
+        def updatedFilter = envoyFilters.items.find { it.metadata.name == manifestName }
 
-                        // Обработка permissions для получения prefix
-                        if (policyValue.permissions) {
-                            for (int p = 0; p < policyValue.permissions.size(); p++) {
-                                def permission = policyValue.permissions[p]
-                                def andRules = permission.and_rules
-                                
-                                if (andRules?.rules) {
-                                    for (int r = 0; r < andRules.rules.size(); r++) {
-                                        def rule = andRules.rules[r]
-                                        
-                                        if (rule.url_path?.path?.prefix) {
-                                            prefix = rule.url_path.path.prefix
-                                            log.infoCustom "Найден prefix: ${prefix} для политики ${policyName}"
-                                        }
+        selectedPrefixes.each { prefix ->
+            def currentRegexList = manifestsMap[manifestName][prefix]
+            def regexChoices = []
+            regexChoices.add(
+                separator(name: "separator_${prefix}", separatorStyle: "line", sectionHeader: "Выберите regex для удаления из ${manifestName} - ${prefix}")
+            )
+
+            currentRegexList.each { regex ->
+                regexChoices.add(booleanParam(name: "${prefix}_${regex}", defaultValue: false, description: regex))
+            }
+
+            def userInputRegex = input(
+                id: "userInputRegexDelete_${manifestName}_${prefix}",
+                message: "Выберите regex для удаления в ${manifestName} - ${prefix}",
+                parameters: regexChoices
+            )
+
+            log.infoCustom "userInputRegex - ${userInputRegex}"
+            updatedFilter.spec.configPatches.each { patch ->
+                def rules = patch.patch?.value?.typed_config?.rules
+                if (rules?.policies) {
+                    rules.policies.each { policyName, policyValue ->
+                        // Проверка на наличие соответствующего prefix
+                        def permissions = policyValue.permissions
+                        def prefixExists = permissions?.any { permission ->
+                            permission.and_rules?.rules?.any { rule ->
+                                rule.url_path?.path?.prefix == prefix
+                            }
+                        }
+                        
+                        if (prefixExists) {
+                            log.infoCustom "Обрабатывается политика с prefix: ${prefix}"
+                            policyValue.principals.each { principal ->
+                                if (principal.header?.safe_regex_match?.regex) {
+                                    def regexToCheck = principal.header.safe_regex_match.regex
+                                    log.infoCustom "Найден regex: ${regexToCheck}"
+                                    
+                                    // Удаление regex, если выбран пользователем
+                                    if (userInputRegex["${prefix}_${regexToCheck}"] == true) {
+                                        log.infoCustom "Удаление regex: ${regexToCheck} для политики ${policyName} с prefix ${prefix}"
+                                        policyValue.principals.removeIf { it.header?.safe_regex_match?.regex == regexToCheck }
                                     }
                                 }
                             }
-                        } else {
-                            log.infoCustom "Не найдены permissions для политики ${policyName}"
-                        }
-
-                        // Обработка principals
-                        if (policyValue.principals) {
-                            log.infoCustom "Найдены principals для политики ${policyName}. Количество: ${policyValue.principals.size()}"
-                            
-                            for (int l = 0; l < policyValue.principals.size(); l++) {
-                                def principal = policyValue.principals[l]
-                                
-                                if (principal.header?.safe_regex_match?.regex) {
-                                    def regex = principal.header.safe_regex_match.regex
-                                    log.infoCustom "Найден regex для principal ${l + 1}: ${regex}"
-                                    regexList.add(regex)
-                                } else {
-                                    log.infoCustom "Не найден regex для principal ${l + 1}"
-                                }
-                            }
-                        } else {
-                            log.infoCustom "Не найдены principals для политики ${policyName}"
-                        }
-
-                        // Добавление regexList в manifestMap
-                        if (prefix && !regexList.isEmpty()) {
-                            log.infoCustom "Добавлен regexList для prefix ${prefix}. Количество regex: ${regexList.size()}"
-                            manifestMap[prefix] = regexList
-                        } else {
-                            log.infoCustom "prefix или regexList пуст для политики ${policyName}"
                         }
                     }
-                } else {
-                    log.infoCustom "Не найдены правила с политиками для patch ${j + 1} в ${manifestName}"
                 }
             }
-        } else {
-            log.infoCustom "Не найдены configPatches для ${manifestName}"
-        }
-
-        // Добавление manifestMap в result
-        if (!manifestMap.isEmpty()) {
-            log.infoCustom "Добавлен manifestMap для ${manifestName}"
-            result[manifestName] = manifestMap
-        } else {
-            log.infoCustom "manifestMap пуст для ${manifestName}"
         }
     }
-
-    log.infoCustom "Завершение обработки Envoy фильтров. Результат: ${result}"
-    return result
 }
