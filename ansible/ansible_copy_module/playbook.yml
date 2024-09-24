@@ -18,7 +18,7 @@ def addHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilters) 
             )
 
             // Логируем введенное регулярное выражение
-            log.infoCustom "Пользователь ввел регулярное выражение: ${userInputRegex["regex_${safePrefix}"]} для префикса ${prefix}"
+            log.infoCustom "Пользователь ввел регулярное выражение: ${userInputRegex} для префикса ${prefix}"
 
             // Шаг 3: Добавление нового блока header в соответствующие политики
             updatedFilter.spec.configPatches.each { patch ->
@@ -47,12 +47,12 @@ def addHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilters) 
                                     name: "x-forwarded-client-cert",
                                     safe_regex_match: [
                                         google_re2: [max_program_size: '4294967295'],
-                                        regex: userInputRegex["regex_${safePrefix}"]
+                                        regex: userInputRegex // Теперь просто используем результат напрямую
                                     ]
                                 ]
                             ]
                             policyValue.principals.add(newPrincipal)
-                            log.infoCustom "Добавлен новый header с regex: ${userInputRegex["regex_${safePrefix}"]} в префикс ${prefix}"
+                            log.infoCustom "Добавлен новый header с regex: ${userInputRegex} в префикс ${prefix}"
                         }
                     }
                 }
