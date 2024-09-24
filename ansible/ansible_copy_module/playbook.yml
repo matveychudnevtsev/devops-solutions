@@ -1,74 +1,76 @@
-def modifyHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilters) {
+def addNewRegexToAllPrefixes(selectedManifest, manifestsMap, envoyFilters) {
     selectedManifest.each { manifestName ->
-        // Шаг 1: Пользователь выбирает префиксы
-        def selectedPrefixes = userInputPolicies[manifestName].findAll { k, v -> v == true }.keySet()
         def updatedFilter = envoyFilters.items.find { it.metadata.name == manifestName }
+        def allPrefixes = [] // Список всех префиксов, которые мы найдем
 
-        selectedPrefixes.each { prefix ->
-            log.infoCustom "Обработка изменения headers для префикса ${prefix} в ${manifestName}"
-
-            // Преобразуем префикс в безопасный для ключей формат
-            def safePrefix = prefix.replaceAll(/[\/]/, "_")
-
-            // Шаг 2: Поиск существующих регулярных выражений в выбранных префиксах
-            def existingRegexes = [:]  // Храним regex в виде карты: ключ — уникальный ID, значение — regex
-            updatedFilter.spec.configPatches.each { patch ->
-                def rules = patch.patch?.value?.typed_config?.rules
-                if (rules?.policies) {
-                    rules.policies.each { policyName, policyValue ->
-                        // Проверка на наличие соответствующего prefix
-                        def permissions = policyValue.permissions
-                        def prefixExists = permissions?.any { permission ->
-                            permission.and_rules?.rules?.any { rule ->
-                                rule.url_path?.path?.prefix == prefix
-                            }
-                        }
-
-                        if (prefixExists) {
-                            policyValue.principals.eachWithIndex { principal, index ->
-                                if (principal.header?.safe_regex_match?.regex) {
-                                    def regex = principal.header.safe_regex_match.regex
-                                    existingRegexes["regex_${safePrefix}_${index}"] = regex
-                                }
+        // Шаг 1: Поиск всех префиксов в манифесте
+        updatedFilter.spec.configPatches.each { patch ->
+            def rules = patch.patch?.value?.typed_config?.rules
+            if (rules?.policies) {
+                rules.policies.each { policyName, policyValue ->
+                    def permissions = policyValue.permissions
+                    permissions?.each { permission ->
+                        permission.and_rules?.rules?.each { rule ->
+                            def prefix = rule.url_path?.path?.prefix
+                            if (prefix) {
+                                allPrefixes << prefix
                             }
                         }
                     }
                 }
             }
+        }
 
-            // Шаг 3: Пользователь видит существующие регулярные выражения и может их изменить
-            def regexInputs = []
-            existingRegexes.each { key, regex ->
-                regexInputs.add(
-                    string(name: key, defaultValue: regex, description: "Изменить регулярное выражение: ${regex}")
-                )
-            }
+        // Логируем найденные префиксы
+        log.infoCustom "Найдено префиксов для ${manifestName}: ${allPrefixes}"
 
-            def modifiedRegexes = input(
-                id: "userInputModifyRegexes_${manifestName}_${safePrefix}",
-                message: "Измените регулярные выражения для префикса ${prefix}",
-                parameters: regexInputs
+        // Шаг 2: Создание полей для ввода нового регулярного выражения для каждого префикса
+        def regexInputs = []
+        allPrefixes.each { prefix ->
+            def safePrefix = prefix.replaceAll(/[\/]/, "_")
+            regexInputs.add(
+                string(name: "regex_${safePrefix}", defaultValue: '', description: "Введите новое регулярное выражение для префикса ${prefix}")
             )
+        }
 
-            // Шаг 4: Обновляем регулярные выражения на основе пользовательского ввода
-            updatedFilter.spec.configPatches.each { patch ->
-                def rules = patch.patch?.value?.typed_config?.rules
-                if (rules?.policies) {
-                    rules.policies.each { policyName, policyValue ->
-                        def permissions = policyValue.permissions
-                        def prefixExists = permissions?.any { permission ->
-                            permission.and_rules?.rules?.any { rule ->
-                                rule.url_path?.path?.prefix == prefix
-                            }
-                        }
+        // Шаг 3: Получение новых регулярных выражений от пользователя
+        def userInputRegexes = input(
+            id: "userInputNewRegexes_${manifestName}",
+            message: "Введите новое регулярное выражение для каждого префикса",
+            parameters: regexInputs
+        )
 
-                        if (prefixExists) {
-                            policyValue.principals.eachWithIndex { principal, index ->
-                                def key = "regex_${safePrefix}_${index}"
-                                if (principal.header?.safe_regex_match?.regex && modifiedRegexes[key]) {
-                                    log.infoCustom "Замена регулярного выражения ${principal.header.safe_regex_match.regex} на ${modifiedRegexes[key]}"
-                                    principal.header.safe_regex_match.regex = modifiedRegexes[key]
+        // Шаг 4: Добавление новых регулярных выражений в каждую политику для каждого префикса
+        updatedFilter.spec.configPatches.each { patch ->
+            def rules = patch.patch?.value?.typed_config?.rules
+            if (rules?.policies) {
+                rules.policies.each { policyName, policyValue ->
+                    def permissions = policyValue.permissions
+                    permissions?.each { permission ->
+                        permission.and_rules?.rules?.each { rule ->
+                            def prefix = rule.url_path?.path?.prefix
+                            if (prefix) {
+                                def safePrefix = prefix.replaceAll(/[\/]/, "_")
+                                def newRegex = userInputRegexes["regex_${safePrefix}"]
+
+                                log.infoCustom "Добавление нового регулярного выражения: ${newRegex} в префикс ${prefix}"
+
+                                // Если у политики еще нет principals, создаем их как пустой список
+                                if (!policyValue.principals) {
+                                    policyValue.principals = []
                                 }
+
+                                // Добавляем новое регулярное выражение как новый блок header
+                                def newPrincipal = [
+                                    header: [
+                                        name: "x-forwarded-client-cert",
+                                        safe_regex_match: [
+                                            google_re2: [max_program_size: '4294967295'],
+                                            regex: newRegex
+                                        ]
+                                    ]
+                                ]
+                                policyValue.principals.add(newPrincipal)
                             }
                         }
                     }
