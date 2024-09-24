@@ -11,7 +11,7 @@ def modifyHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilter
             def safePrefix = prefix.replaceAll(/[\/]/, "_")
 
             // Шаг 2: Поиск существующих регулярных выражений в выбранных префиксах
-            def existingRegexes = []
+            def existingRegexes = [:]  // Храним regex в виде карты: ключ — уникальный ID, значение — regex
             updatedFilter.spec.configPatches.each { patch ->
                 def rules = patch.patch?.value?.typed_config?.rules
                 if (rules?.policies) {
@@ -25,9 +25,10 @@ def modifyHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilter
                         }
 
                         if (prefixExists) {
-                            policyValue.principals.each { principal ->
+                            policyValue.principals.eachWithIndex { principal, index ->
                                 if (principal.header?.safe_regex_match?.regex) {
-                                    existingRegexes.add(principal.header.safe_regex_match.regex)
+                                    def regex = principal.header.safe_regex_match.regex
+                                    existingRegexes["regex_${safePrefix}_${index}"] = regex
                                 }
                             }
                         }
@@ -35,32 +36,21 @@ def modifyHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilter
                 }
             }
 
-            // Шаг 3: Пользователь выбирает, какое регулярное выражение изменить
-            def regexChoices = []
-            existingRegexes.each { regex ->
-                regexChoices.add(booleanParam(name: "regex_${regex}", defaultValue: false, description: "Изменить: ${regex}"))
+            // Шаг 3: Пользователь видит существующие регулярные выражения и может их изменить
+            def regexInputs = []
+            existingRegexes.each { key, regex ->
+                regexInputs.add(
+                    string(name: key, defaultValue: regex, description: "Изменить регулярное выражение: ${regex}")
+                )
             }
 
-            def selectedRegexToModify = input(
-                id: "userInputRegexSelect_${manifestName}_${safePrefix}",
-                message: "Выберите регулярное выражение для изменения в ${manifestName} - ${prefix}",
-                parameters: regexChoices
+            def modifiedRegexes = input(
+                id: "userInputModifyRegexes_${manifestName}_${safePrefix}",
+                message: "Измените регулярные выражения для префикса ${prefix}",
+                parameters: regexInputs
             )
 
-            // Логируем выбранное регулярное выражение
-            def regexToModify = selectedRegexToModify.find { it.value == true }?.key?.replace('regex_', '')
-            log.infoCustom "Пользователь выбрал для изменения регулярное выражение: ${regexToModify} для префикса ${prefix}"
-
-            // Шаг 4: Пользователь вводит новое регулярное выражение
-            def newRegexInput = input(
-                id: "userInputRegexModify_${manifestName}_${safePrefix}",
-                message: "Введите новое регулярное выражение для замены в ${manifestName} - ${prefix}",
-                parameters: [string(name: "newRegex", defaultValue: '', description: "Введите новое регулярное выражение для замены ${regexToModify}")]
-            )
-
-            def newRegex = newRegexInput["newRegex"]
-
-            // Шаг 5: Замена старого регулярного выражения на новое
+            // Шаг 4: Обновляем регулярные выражения на основе пользовательского ввода
             updatedFilter.spec.configPatches.each { patch ->
                 def rules = patch.patch?.value?.typed_config?.rules
                 if (rules?.policies) {
@@ -73,10 +63,11 @@ def modifyHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilter
                         }
 
                         if (prefixExists) {
-                            policyValue.principals.each { principal ->
-                                if (principal.header?.safe_regex_match?.regex == regexToModify) {
-                                    log.infoCustom "Замена регулярного выражения ${regexToModify} на ${newRegex} для префикса ${prefix}"
-                                    principal.header.safe_regex_match.regex = newRegex
+                            policyValue.principals.eachWithIndex { principal, index ->
+                                def key = "regex_${safePrefix}_${index}"
+                                if (principal.header?.safe_regex_match?.regex && modifiedRegexes[key]) {
+                                    log.infoCustom "Замена регулярного выражения ${principal.header.safe_regex_match.regex} на ${modifiedRegexes[key]}"
+                                    principal.header.safe_regex_match.regex = modifiedRegexes[key]
                                 }
                             }
                         }
