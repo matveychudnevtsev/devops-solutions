@@ -18,7 +18,7 @@ def addHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilters) 
             )
 
             // Логируем введенное регулярное выражение
-            log.infoCustom "Пользователь ввел регулярное выражение: ${userInputRegex['regex_' + safePrefix]} для префикса ${prefix}"
+            log.infoCustom "Пользователь ввел регулярное выражение: ${userInputRegex["regex_${safePrefix}"]} для префикса ${prefix}"
 
             // Шаг 3: Добавление нового блока header в соответствующие политики
             updatedFilter.spec.configPatches.each { patch ->
@@ -52,7 +52,7 @@ def addHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilters) 
                                 ]
                             ]
                             policyValue.principals.add(newPrincipal)
-                            log.infoCustom "Добавлен новый header с regex: ${userInputRegex['regex_' + safePrefix]} в префикс ${prefix}"
+                            log.infoCustom "Добавлен новый header с regex: ${userInputRegex["regex_${safePrefix}"]} в префикс ${prefix}"
                         }
                     }
                 }
