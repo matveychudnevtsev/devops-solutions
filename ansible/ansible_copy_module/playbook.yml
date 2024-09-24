@@ -25,13 +25,11 @@ def addOneRegexToAllPrefixes(selectedManifest, manifestsMap, envoyFilters) {
         log.infoCustom "Найдено префиксов для ${manifestName}: ${allPrefixes}"
 
         // Шаг 2: Получение одного нового регулярного выражения от пользователя
-        def newRegexInput = input(
+        def newRegex = input(
             id: "userInputNewRegex_${manifestName}",
             message: "Введите новое регулярное выражение, которое будет добавлено во все префиксы",
             parameters: [string(name: "newRegex", defaultValue: '', description: "Введите новое регулярное выражение")]
         )
-
-        def newRegex = newRegexInput["newRegex"]
 
         // Шаг 3: Добавление нового регулярного выражения ко всем префиксам
         updatedFilter.spec.configPatches.each { patch ->
