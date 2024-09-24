@@ -1,4 +1,4 @@
-def addNewRegexToAllPrefixes(selectedManifest, manifestsMap, envoyFilters) {
+def addOneRegexToAllPrefixes(selectedManifest, manifestsMap, envoyFilters) {
     selectedManifest.each { manifestName ->
         def updatedFilter = envoyFilters.items.find { it.metadata.name == manifestName }
         def allPrefixes = [] // Список всех префиксов, которые мы найдем
@@ -24,23 +24,16 @@ def addNewRegexToAllPrefixes(selectedManifest, manifestsMap, envoyFilters) {
         // Логируем найденные префиксы
         log.infoCustom "Найдено префиксов для ${manifestName}: ${allPrefixes}"
 
-        // Шаг 2: Создание полей для ввода нового регулярного выражения для каждого префикса
-        def regexInputs = []
-        allPrefixes.each { prefix ->
-            def safePrefix = prefix.replaceAll(/[\/]/, "_")
-            regexInputs.add(
-                string(name: "regex_${safePrefix}", defaultValue: '', description: "Введите новое регулярное выражение для префикса ${prefix}")
-            )
-        }
-
-        // Шаг 3: Получение новых регулярных выражений от пользователя
-        def userInputRegexes = input(
-            id: "userInputNewRegexes_${manifestName}",
-            message: "Введите новое регулярное выражение для каждого префикса",
-            parameters: regexInputs
+        // Шаг 2: Получение одного нового регулярного выражения от пользователя
+        def newRegexInput = input(
+            id: "userInputNewRegex_${manifestName}",
+            message: "Введите новое регулярное выражение, которое будет добавлено во все префиксы",
+            parameters: [string(name: "newRegex", defaultValue: '', description: "Введите новое регулярное выражение")]
         )
 
-        // Шаг 4: Добавление новых регулярных выражений в каждую политику для каждого префикса
+        def newRegex = newRegexInput["newRegex"]
+
+        // Шаг 3: Добавление нового регулярного выражения ко всем префиксам
         updatedFilter.spec.configPatches.each { patch ->
             def rules = patch.patch?.value?.typed_config?.rules
             if (rules?.policies) {
@@ -50,9 +43,6 @@ def addNewRegexToAllPrefixes(selectedManifest, manifestsMap, envoyFilters) {
                         permission.and_rules?.rules?.each { rule ->
                             def prefix = rule.url_path?.path?.prefix
                             if (prefix) {
-                                def safePrefix = prefix.replaceAll(/[\/]/, "_")
-                                def newRegex = userInputRegexes["regex_${safePrefix}"]
-
                                 log.infoCustom "Добавление нового регулярного выражения: ${newRegex} в префикс ${prefix}"
 
                                 // Если у политики еще нет principals, создаем их как пустой список
