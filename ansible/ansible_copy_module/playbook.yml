@@ -1,26 +1,17 @@
-def addHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilters) {
+def modifyHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilters) {
     selectedManifest.each { manifestName ->
         // Шаг 1: Пользователь выбирает префиксы
         def selectedPrefixes = userInputPolicies[manifestName].findAll { k, v -> v == true }.keySet()
         def updatedFilter = envoyFilters.items.find { it.metadata.name == manifestName }
 
         selectedPrefixes.each { prefix ->
-            log.infoCustom "Обработка добавления headers для префикса ${prefix} в ${manifestName}"
+            log.infoCustom "Обработка изменения headers для префикса ${prefix} в ${manifestName}"
 
             // Преобразуем префикс в безопасный для ключей формат
             def safePrefix = prefix.replaceAll(/[\/]/, "_")
 
-            // Шаг 2: Пользователь вводит одно регулярное выражение для каждого префикса
-            def userInputRegex = input(
-                id: "userInputRegexAdd_${manifestName}_${safePrefix}",
-                message: "Введите регулярное выражение для добавления в ${manifestName} - ${prefix}",
-                parameters: [string(name: "regex_${safePrefix}", defaultValue: '', description: "Введите регулярное выражение для префикса ${prefix}")]
-            )
-
-            // Логируем введенное регулярное выражение
-            log.infoCustom "Пользователь ввел регулярное выражение: ${userInputRegex} для префикса ${prefix}"
-
-            // Шаг 3: Добавление нового блока header в соответствующие политики
+            // Шаг 2: Поиск существующих регулярных выражений в выбранных префиксах
+            def existingRegexes = []
             updatedFilter.spec.configPatches.each { patch ->
                 def rules = patch.patch?.value?.typed_config?.rules
                 if (rules?.policies) {
@@ -34,25 +25,60 @@ def addHeaders(selectedManifest, userInputPolicies, manifestsMap, envoyFilters) 
                         }
 
                         if (prefixExists) {
-                            log.infoCustom "Добавляем headers в политику с prefix: ${prefix}"
-
-                            // Если у политики еще нет principals, создаем их как пустой список
-                            if (!policyValue.principals) {
-                                policyValue.principals = []
+                            policyValue.principals.each { principal ->
+                                if (principal.header?.safe_regex_match?.regex) {
+                                    existingRegexes.add(principal.header.safe_regex_match.regex)
+                                }
                             }
+                        }
+                    }
+                }
+            }
 
-                            // Добавляем новое регулярное выражение как новый блок header
-                            def newPrincipal = [
-                                header: [
-                                    name: "x-forwarded-client-cert",
-                                    safe_regex_match: [
-                                        google_re2: [max_program_size: '4294967295'],
-                                        regex: userInputRegex // Теперь просто используем результат напрямую
-                                    ]
-                                ]
-                            ]
-                            policyValue.principals.add(newPrincipal)
-                            log.infoCustom "Добавлен новый header с regex: ${userInputRegex} в префикс ${prefix}"
+            // Шаг 3: Пользователь выбирает, какое регулярное выражение изменить
+            def regexChoices = []
+            existingRegexes.each { regex ->
+                regexChoices.add(booleanParam(name: "regex_${regex}", defaultValue: false, description: "Изменить: ${regex}"))
+            }
+
+            def selectedRegexToModify = input(
+                id: "userInputRegexSelect_${manifestName}_${safePrefix}",
+                message: "Выберите регулярное выражение для изменения в ${manifestName} - ${prefix}",
+                parameters: regexChoices
+            )
+
+            // Логируем выбранное регулярное выражение
+            def regexToModify = selectedRegexToModify.find { it.value == true }?.key?.replace('regex_', '')
+            log.infoCustom "Пользователь выбрал для изменения регулярное выражение: ${regexToModify} для префикса ${prefix}"
+
+            // Шаг 4: Пользователь вводит новое регулярное выражение
+            def newRegexInput = input(
+                id: "userInputRegexModify_${manifestName}_${safePrefix}",
+                message: "Введите новое регулярное выражение для замены в ${manifestName} - ${prefix}",
+                parameters: [string(name: "newRegex", defaultValue: '', description: "Введите новое регулярное выражение для замены ${regexToModify}")]
+            )
+
+            def newRegex = newRegexInput["newRegex"]
+
+            // Шаг 5: Замена старого регулярного выражения на новое
+            updatedFilter.spec.configPatches.each { patch ->
+                def rules = patch.patch?.value?.typed_config?.rules
+                if (rules?.policies) {
+                    rules.policies.each { policyName, policyValue ->
+                        def permissions = policyValue.permissions
+                        def prefixExists = permissions?.any { permission ->
+                            permission.and_rules?.rules?.any { rule ->
+                                rule.url_path?.path?.prefix == prefix
+                            }
+                        }
+
+                        if (prefixExists) {
+                            policyValue.principals.each { principal ->
+                                if (principal.header?.safe_regex_match?.regex == regexToModify) {
+                                    log.infoCustom "Замена регулярного выражения ${regexToModify} на ${newRegex} для префикса ${prefix}"
+                                    principal.header.safe_regex_match.regex = newRegex
+                                }
+                            }
                         }
                     }
                 }
