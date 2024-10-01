@@ -1,29 +1,133 @@
-def addAnnotationsToManifest(selectedManifest, envoyFilters) {
-    // 1. Определение пользователя, который запустил джобу
-    def jobUser = env.BUILD_USER ?: 'unknown_user'  // Получаем имя пользователя, который запустил джобу
+def processEnvoyFilters(rbacFilters) {
+    log.infoCustom "Начало обработки Envoy фильтров. Количество фильтров: ${rbacFilters.size()}"
+    def result = [:]
+    
+    for (int i = 0; i < rbacFilters.size(); i++) {
+        def filter = rbacFilters[i]
+        log.infoCustom "Обработка фильтра ${i + 1}: ${filter.metadata.name}"
+        
+        // Проверка версии плагина перед обработкой
+        checkIstioPluginVersion(filter)  // Проверяем версию Istio
+        
+        def manifestName = filter.metadata.name
+        def manifestMap = [:]
+        def configPatches = filter.spec.configPatches
+        
+        if (configPatches) {
+            log.infoCustom "Найдены configPatches для ${manifestName}. Количество: ${configPatches.size()}"
+            
+            for (int j = 0; j < configPatches.size(); j++) {
+                def patch = configPatches[j]
+                def rules = patch.patch?.value?.typed_config?.rules
+                
+                if (rules?.policies) {
+                    log.infoCustom "Найдены политики для ${manifestName}"
+                    def policies = rules.policies
+                    def policyNames = policies.keySet() as List
+                    
+                    log.infoCustom "Количество политик: ${policyNames.size()}"
+                    for (int k = 0; k < policyNames.size(); k++) {
+                        def policyName = policyNames[k]
+                        log.infoCustom "Обработка политики: ${policyName}"
+                        def policyValue = policies[policyName]
+                        def regexList = []
+                        def prefix = null
 
-    // 2. Получение текущего времени в формате с-м-ч-дд-мм-гггг
-    def currentTime = new Date().format('ss-mm-HH-dd-MM-yyyy')
+                        // Обработка permissions для получения prefix
+                        if (policyValue.permissions) {
+                            for (int p = 0; p < policyValue.permissions.size(); p++) {
+                                def permission = policyValue.permissions[p]
+                                def andRules = permission.and_rules
+                                
+                                if (andRules?.rules) {
+                                    for (int r = 0; r < andRules.rules.size(); r++) {
+                                        def rule = andRules.rules[r]
+                                        
+                                        if (rule.url_path?.path?.prefix) {
+                                            prefix = rule.url_path.path.prefix
+                                            log.infoCustom "Найден prefix: ${prefix} для политики ${policyName}"
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            log.infoCustom "Не найдены permissions для политики ${policyName}"
+                        }
 
-    // 3. Добавление аннотаций в каждый манифест
-    selectedManifest.each { manifestName ->
-        def updatedFilter = envoyFilters.items.find { it.metadata.name == manifestName }
-        if (updatedFilter) {
-            if (!updatedFilter.metadata.annotations) {
-                updatedFilter.metadata.annotations = [:]  // Если аннотации отсутствуют, создаем их
+                        // Обработка principals
+                        if (policyValue.principals) {
+                            log.infoCustom "Найдены principals для политики ${policyName}. Количество: ${policyValue.principals.size()}"
+                            
+                            for (int l = 0; l < policyValue.principals.size(); l++) {
+                                def principal = policyValue.principals[l]
+                                
+                                if (principal.header?.safe_regex_match?.regex) {
+                                    def regex = principal.header.safe_regex_match.regex
+                                    log.infoCustom "Найден regex для principal ${l + 1}: ${regex}"
+                                    regexList.add(regex)
+                                } else {
+                                    log.infoCustom "Не найден regex для principal ${l + 1}"
+                                }
+                            }
+                        } else {
+                            log.infoCustom "Не найдены principals для политики ${policyName}"
+                        }
+
+                        // Добавление regexList в manifestMap
+                        if (prefix && !regexList.isEmpty()) {
+                            log.infoCustom "Добавлен regexList для prefix ${prefix}. Количество regex: ${regexList.size()}"
+                            manifestMap[prefix] = regexList
+                        } else {
+                            log.infoCustom "prefix или regexList пуст для политики ${policyName}"
+                        }
+                    }
+                } else {
+                    log.infoCustom "Не найдены правила с политиками для patch ${j + 1} в ${manifestName}"
+                }
             }
-            // Добавляем аннотацию с именем пользователя
-            updatedFilter.metadata.annotations["job-runner"] = jobUser
-            // Добавляем аннотацию с временем запуска
-            updatedFilter.metadata.annotations["job-run-time"] = currentTime
-            log.infoCustom "Добавлены аннотации в манифест ${manifestName}: пользователь ${jobUser}, время ${currentTime}"
+        } else {
+            log.infoCustom "Не найдены configPatches для ${manifestName}"
+        }
+
+        // Добавление manifestMap в result
+        if (!manifestMap.isEmpty()) {
+            log.infoCustom "Добавлен manifestMap для ${manifestName}"
+            result[manifestName] = manifestMap
+        } else {
+            log.infoCustom "manifestMap пуст для ${manifestName}"
         }
     }
-    log.infoCustom "Аннотации успешно добавлены во все измененные манифесты."
+
+    log.infoCustom "Завершение обработки Envoy фильтров. Результат: ${result}"
+    return result
 }
 
-
-
-    if (currentBuild.rawBuild.getCause(hudson.model.Cause$UserIdCause)) {
-        jobUser = currentBuild.rawBuild.getCause(hudson.model.Cause$UserIdCause).getUserName()
+// Функция для проверки версии плагина
+def checkIstioPluginVersion(filter) {
+    // 1. Извлечение версии плагина из метаданных
+    def pluginVersion = filter?.metadata?.labels?.get('plugin.version')
+    
+    if (!pluginVersion) {
+        error "Версия плагина Istio не найдена. Джоба остановлена."
     }
+
+    log.infoCustom "Найдена версия плагина: ${pluginVersion}"
+
+    // 2. Извлечение основной версии (до любых производных)
+    def versionPattern = ~/^(\d+)\.(\d+)(.*)$/
+    def matcher = pluginVersion =~ versionPattern
+
+    if (!matcher.matches()) {
+        error "Неправильный формат версии плагина: ${pluginVersion}. Джоба остановлена."
+    }
+
+    def majorVersion = matcher[0][1] as Integer
+    def minorVersion = matcher[0][2] as Integer
+
+    // 3. Проверка, что версия не меньше 3.5
+    if (majorVersion < 3 || (majorVersion == 3 && minorVersion < 5)) {
+        error "Ваша версия плагина ${pluginVersion} не подходит. Требуется версия 3.5 или выше. Джоба остановлена."
+    }
+
+    log.infoCustom "Версия плагина ${pluginVersion} подходит. Продолжаем выполнение джобы."
+}
