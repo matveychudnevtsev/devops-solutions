@@ -21,3 +21,9 @@ def addAnnotationsToManifest(selectedManifest, envoyFilters) {
     }
     log.infoCustom "Аннотации успешно добавлены во все измененные манифесты."
 }
+
+
+
+    if (currentBuild.rawBuild.getCause(hudson.model.Cause$UserIdCause)) {
+        jobUser = currentBuild.rawBuild.getCause(hudson.model.Cause$UserIdCause).getUserName()
+    }
