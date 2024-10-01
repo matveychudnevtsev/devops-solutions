@@ -1,69 +1,23 @@
-def addOneRegexToAllPrefixes(selectedManifest, manifestsMap, envoyFilters) {
+def addAnnotationsToManifest(selectedManifest, envoyFilters) {
+    // 1. Определение пользователя, который запустил джобу
+    def jobUser = env.BUILD_USER ?: 'unknown_user'  // Получаем имя пользователя, который запустил джобу
+
+    // 2. Получение текущего времени в формате с-м-ч-дд-мм-гггг
+    def currentTime = new Date().format('ss-mm-HH-dd-MM-yyyy')
+
+    // 3. Добавление аннотаций в каждый манифест
     selectedManifest.each { manifestName ->
         def updatedFilter = envoyFilters.items.find { it.metadata.name == manifestName }
-        def allPrefixes = [] // Список всех префиксов, которые мы найдем
-
-        // Шаг 1: Поиск всех префиксов в манифесте
-        updatedFilter.spec.configPatches.each { patch ->
-            def rules = patch.patch?.value?.typed_config?.rules
-            if (rules?.policies) {
-                rules.policies.each { policyName, policyValue ->
-                    def permissions = policyValue.permissions
-                    permissions?.each { permission ->
-                        permission.and_rules?.rules?.each { rule ->
-                            def prefix = rule.url_path?.path?.prefix
-                            if (prefix) {
-                                allPrefixes << prefix
-                            }
-                        }
-                    }
-                }
+        if (updatedFilter) {
+            if (!updatedFilter.metadata.annotations) {
+                updatedFilter.metadata.annotations = [:]  // Если аннотации отсутствуют, создаем их
             }
-        }
-
-        // Логируем найденные префиксы
-        log.infoCustom "Найдено префиксов для ${manifestName}: ${allPrefixes}"
-
-        // Шаг 2: Получение одного нового регулярного выражения от пользователя
-        def newRegex = input(
-            id: "userInputNewRegex_${manifestName}",
-            message: "Введите новое регулярное выражение, которое будет добавлено во все префиксы",
-            parameters: [string(name: "newRegex", defaultValue: '', description: "Введите новое регулярное выражение")]
-        )
-
-        // Шаг 3: Добавление нового регулярного выражения ко всем префиксам
-        updatedFilter.spec.configPatches.each { patch ->
-            def rules = patch.patch?.value?.typed_config?.rules
-            if (rules?.policies) {
-                rules.policies.each { policyName, policyValue ->
-                    def permissions = policyValue.permissions
-                    permissions?.each { permission ->
-                        permission.and_rules?.rules?.each { rule ->
-                            def prefix = rule.url_path?.path?.prefix
-                            if (prefix) {
-                                log.infoCustom "Добавление нового регулярного выражения: ${newRegex} в префикс ${prefix}"
-
-                                // Если у политики еще нет principals, создаем их как пустой список
-                                if (!policyValue.principals) {
-                                    policyValue.principals = []
-                                }
-
-                                // Добавляем новое регулярное выражение как новый блок header
-                                def newPrincipal = [
-                                    header: [
-                                        name: "x-forwarded-client-cert",
-                                        safe_regex_match: [
-                                            google_re2: [max_program_size: '4294967295'],
-                                            regex: newRegex
-                                        ]
-                                    ]
-                                ]
-                                policyValue.principals.add(newPrincipal)
-                            }
-                        }
-                    }
-                }
-            }
+            // Добавляем аннотацию с именем пользователя
+            updatedFilter.metadata.annotations["job-runner"] = jobUser
+            // Добавляем аннотацию с временем запуска
+            updatedFilter.metadata.annotations["job-run-time"] = currentTime
+            log.infoCustom "Добавлены аннотации в манифест ${manifestName}: пользователь ${jobUser}, время ${currentTime}"
         }
     }
+    log.infoCustom "Аннотации успешно добавлены во все измененные манифесты."
 }
