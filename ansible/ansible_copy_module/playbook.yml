@@ -1,133 +1,76 @@
-def processEnvoyFilters(rbacFilters) {
-    log.infoCustom "Начало обработки Envoy фильтров. Количество фильтров: ${rbacFilters.size()}"
-    def result = [:]
-    
-    for (int i = 0; i < rbacFilters.size(); i++) {
-        def filter = rbacFilters[i]
-        log.infoCustom "Обработка фильтра ${i + 1}: ${filter.metadata.name}"
-        
-        // Проверка версии плагина перед обработкой
-        checkIstioPluginVersion(filter)  // Проверяем версию Istio
-        
-        def manifestName = filter.metadata.name
-        def manifestMap = [:]
-        def configPatches = filter.spec.configPatches
-        
-        if (configPatches) {
-            log.infoCustom "Найдены configPatches для ${manifestName}. Количество: ${configPatches.size()}"
-            
-            for (int j = 0; j < configPatches.size(); j++) {
-                def patch = configPatches[j]
-                def rules = patch.patch?.value?.typed_config?.rules
-                
-                if (rules?.policies) {
-                    log.infoCustom "Найдены политики для ${manifestName}"
-                    def policies = rules.policies
-                    def policyNames = policies.keySet() as List
-                    
-                    log.infoCustom "Количество политик: ${policyNames.size()}"
-                    for (int k = 0; k < policyNames.size(); k++) {
-                        def policyName = policyNames[k]
-                        log.infoCustom "Обработка политики: ${policyName}"
-                        def policyValue = policies[policyName]
-                        def regexList = []
-                        def prefix = null
+def oc_tool = tool(name: 'oc-3.11', type: 'oc')
+def helm_tool = tool(name: 'helm-3.5', type: 'helm') // Используем Helm 3.5, обновите, если необходимо
 
-                        // Обработка permissions для получения prefix
-                        if (policyValue.permissions) {
-                            for (int p = 0; p < policyValue.permissions.size(); p++) {
-                                def permission = policyValue.permissions[p]
-                                def andRules = permission.and_rules
-                                
-                                if (andRules?.rules) {
-                                    for (int r = 0; r < andRules.rules.size(); r++) {
-                                        def rule = andRules.rules[r]
-                                        
-                                        if (rule.url_path?.path?.prefix) {
-                                            prefix = rule.url_path.path.prefix
-                                            log.infoCustom "Найден prefix: ${prefix} для политики ${policyName}"
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            log.infoCustom "Не найдены permissions для политики ${policyName}"
-                        }
+// Получение списка релизов Helm
+def helmReleases = sh(script: "${helm_tool}/helm list -a --kubeconfig=${KUBECONFIG} -o json", returnStdout: true).trim()
 
-                        // Обработка principals
-                        if (policyValue.principals) {
-                            log.infoCustom "Найдены principals для политики ${policyName}. Количество: ${policyValue.principals.size()}"
-                            
-                            for (int l = 0; l < policyValue.principals.size(); l++) {
-                                def principal = policyValue.principals[l]
-                                
-                                if (principal.header?.safe_regex_match?.regex) {
-                                    def regex = principal.header.safe_regex_match.regex
-                                    log.infoCustom "Найден regex для principal ${l + 1}: ${regex}"
-                                    regexList.add(regex)
-                                } else {
-                                    log.infoCustom "Не найден regex для principal ${l + 1}"
-                                }
-                            }
-                        } else {
-                            log.infoCustom "Не найдены principals для политики ${policyName}"
-                        }
-
-                        // Добавление regexList в manifestMap
-                        if (prefix && !regexList.isEmpty()) {
-                            log.infoCustom "Добавлен regexList для prefix ${prefix}. Количество regex: ${regexList.size()}"
-                            manifestMap[prefix] = regexList
-                        } else {
-                            log.infoCustom "prefix или regexList пуст для политики ${policyName}"
-                        }
-                    }
-                } else {
-                    log.infoCustom "Не найдены правила с политиками для patch ${j + 1} в ${manifestName}"
-                }
-            }
-        } else {
-            log.infoCustom "Не найдены configPatches для ${manifestName}"
-        }
-
-        // Добавление manifestMap в result
-        if (!manifestMap.isEmpty()) {
-            log.infoCustom "Добавлен manifestMap для ${manifestName}"
-            result[manifestName] = manifestMap
-        } else {
-            log.infoCustom "manifestMap пуст для ${manifestName}"
-        }
-    }
-
-    log.infoCustom "Завершение обработки Envoy фильтров. Результат: ${result}"
-    return result
+// Получение списка элементов в проекте
+def ListEl = null
+try {
+    ListEl = sh(script: "set +x; ${oc_tool}/oc get --config=${KUBECONFIG} all,ingress,configmaps,globalratelimits,serviceentries,gateways,destinationrules,virtualservices,envoyfilters,sidecars -o name | grep -v -E 'replicaset.apps/|configmap/istio-ca-root-cert|configmap/kube-root.ca.crt|configmap/openshift-service-ca.crt'", returnStdout: true).trim()
+} catch (Exception e) {
+    println("Нечего удалять")
 }
 
-// Функция для проверки версии плагина
-def checkIstioPluginVersion(filter) {
-    // 1. Извлечение версии плагина из метаданных
-    def pluginVersion = filter?.metadata?.labels?.get('plugin.version')
+// Если есть ресурсы для удаления или релизы Helm
+if (ListEl || helmReleases) {
+    println(ListEl)
+    def ListElbr = ListEl.replaceAll("\n", "<br>")
     
-    if (!pluginVersion) {
-        error "Версия плагина Istio не найдена. Джоба остановлена."
+    // Добавляем сообщение для релизов Helm
+    def helmReleasesFormatted = helmReleases.replaceAll("\n", "<br>")
+    
+    // Добавляем чекбокс для подтверждения удаления элементов проекта
+    def BoolDelete = input message: "Запустить удаление указанных элементов?",
+        parameters: [booleanParam(defaultValue: true, 
+            description: "<strong>Список элементов</strong><br>${ListElbr}", 
+            name: "BoolDelete")]
+    
+    // Добавляем чекбокс для подтверждения удаления релизов Helm
+    def BoolHelmDelete = input message: "Запустить удаление релизов Helm?",
+        parameters: [booleanParam(defaultValue: true, 
+            description: "<strong>Список релизов Helm</strong><br>${helmReleasesFormatted}", 
+            name: "BoolHelmDelete")]
+    
+    // Удаление ресурсов OpenShift
+    if (BoolDelete) {
+        def check_pods = sh(script: "${oc_tool}/oc get --config=${KUBECONFIG} deployments -o name", returnStdout: true).trim()
+        if (check_pods) {
+            sh "set +x; ${oc_tool}/oc scale --config=${KUBECONFIG} --replicas=0 \$(${oc_tool}/oc get --config=${KUBECONFIG} deployments -o name)"
+        }
+        try {
+            sh "set +x; ${oc_tool}/oc delete --config=${KUBECONFIG} \$(${oc_tool}/oc get --config=${KUBECONFIG} all,ingress,configmaps,serviceentries,gateways,destinationrules,virtualservices,envoyfilters,sidecars -o name | grep -v -E 'replicaset.apps/|configmap/istio-ca-root-cert|configmap/kube-root.ca.crt|configmap/openshift-service-ca.crt')"
+        } catch (Exception e) {
+            println("Ошибка при удалении элементов: " + e.getMessage())
+        }
     }
-
-    log.infoCustom "Найдена версия плагина: ${pluginVersion}"
-
-    // 2. Извлечение основной версии (до любых производных)
-    def versionPattern = ~/^(\d+)\.(\d+)(.*)$/
-    def matcher = pluginVersion =~ versionPattern
-
-    if (!matcher.matches()) {
-        error "Неправильный формат версии плагина: ${pluginVersion}. Джоба остановлена."
+    
+    // Удаление релизов Helm
+    if (BoolHelmDelete) {
+        def helmReleasesList = readJSON text: helmReleases
+        helmReleasesList.each { release ->
+            def releaseName = release.name
+            try {
+                sh "${helm_tool}/helm uninstall ${releaseName} --kubeconfig=${KUBECONFIG}"
+            } catch (Exception e) {
+                println("Ошибка при удалении релиза Helm: ${releaseName}, сообщение: " + e.getMessage())
+            }
+        }
     }
-
-    def majorVersion = matcher[0][1] as Integer
-    def minorVersion = matcher[0][2] as Integer
-
-    // 3. Проверка, что версия не меньше 3.5
-    if (majorVersion < 3 || (majorVersion == 3 && minorVersion < 5)) {
-        error "Ваша версия плагина ${pluginVersion} не подходит. Требуется версия 3.5 или выше. Джоба остановлена."
+    
+    // Удаление секретов Reflex
+    def deleteSecrets = input message: "Удалить секреты Reflex?",
+        parameters: [booleanParam(defaultValue: false, 
+            description: "Секреты для удаления: dynatrace-data-ingest-endpoint, dynatrace-dynakube-config", 
+            name: "DeleteReflexSecrets")]
+    
+    if (deleteSecrets) {
+        try {
+            sh "set +x; ${oc_tool}/oc delete secret dynatrace-data-ingest-endpoint dynatrace-dynakube-config --config=${KUBECONFIG}"
+        } catch (Exception e) {
+            println("Ошибка при удалении секретов: " + e.getMessage())
+        }
     }
-
-    log.infoCustom "Версия плагина ${pluginVersion} подходит. Продолжаем выполнение джобы."
+} else {
+    println("Проект чистый")
 }
