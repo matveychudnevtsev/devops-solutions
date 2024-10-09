@@ -222,3 +222,115 @@ def getInfoBlockAndSubsystemAndClusters(def bitbucket, def repositoryNameCommonS
 
     return standMap
 }
+
+
+
+
+----------
+
+
+
+
+def oc_tool = tool(name: 'oc-3.11', type: 'oc')
+def helm_tool = tool(name: 'helm-v3.6.3', type: 'com.cloudbees.jenkins.plugins.customtools.CustomTool') // Custom tool для Helm
+
+// Функция для проверки наличия ресурса на кластере
+def resourceExists(resourceType) {
+    try {
+        sh(script: "${oc_tool}/oc get --config=${KUBECONFIG} ${resourceType} --ignore-not-found", returnStdout: true).trim()
+        return true
+    } catch (Exception e) {
+        return false
+    }
+}
+
+// Получение списка релизов Helm в формате JSON
+def helmReleases = sh(script: "${helm_tool}/helm list -a --kubeconfig=${KUBECONFIG} -o json", returnStdout: true).trim()
+
+// Преобразование JSON-ответа в более читаемый формат с полями name и chart
+def helmReleasesFormatted = ""
+if (helmReleases) {
+    def helmReleasesList = readJSON text: helmReleases
+    helmReleasesList.each { release ->
+        helmReleasesFormatted += "Релиз: ${release.name}, Чарт: ${release.chart}<br>"
+    }
+}
+
+// Проверка наличия ресурса "globalratelimits"
+def globalRatelimitsAvailable = resourceExists('globalratelimits')
+
+// Формируем команду для получения списка ресурсов, исключая globalratelimits, если его нет
+def resourceTypes = "all,ingress,configmaps,serviceentries,gateways,destinationrules,virtualservices,envoyfilters,sidecars"
+if (globalRatelimitsAvailable) {
+    resourceTypes += ",globalratelimits"
+}
+
+// Получение списка элементов в проекте
+def ListEl = null
+try {
+    ListEl = sh(script: "set +x; ${oc_tool}/oc get --config=${KUBECONFIG} ${resourceTypes} -o name | grep -v -E 'replicaset.apps/|configmap/istio-ca-root-cert|configmap/kube-root.ca.crt|configmap/openshift-service-ca.crt'", returnStdout: true).trim()
+} catch (Exception e) {
+    println("Нечего удалять")
+}
+
+// Если есть ресурсы для удаления или релизы Helm
+if (ListEl || helmReleasesFormatted) {
+    println(ListEl)
+    def ListElbr = ListEl ? ListEl.replaceAll("\n", "<br>") : ""
+
+    // Объединяем чекбоксы в один input
+    def userInput = input message: "Запустить удаление указанных элементов?",
+        parameters: [
+            booleanParam(defaultValue: true, 
+                description: "<strong>Список элементов</strong><br>${ListElbr}", 
+                name: "BoolDelete"),
+            booleanParam(defaultValue: true, 
+                description: "<strong>Список релизов Helm</strong><br>${helmReleasesFormatted}", 
+                name: "BoolHelmDelete")
+        ]
+    
+    def BoolDelete = userInput['BoolDelete']
+    def BoolHelmDelete = userInput['BoolHelmDelete']
+    
+    // Удаление ресурсов OpenShift
+    if (BoolDelete) {
+        def check_pods = sh(script: "${oc_tool}/oc get --config=${KUBECONFIG} deployments -o name", returnStdout: true).trim()
+        if (check_pods) {
+            sh "set +x; ${oc_tool}/oc scale --config=${KUBECONFIG} --replicas=0 \$(${oc_tool}/oc get --config=${KUBECONFIG} deployments -o name)"
+        }
+        try {
+            sh "set +x; ${oc_tool}/oc delete --config=${KUBECONFIG} \$(${oc_tool}/oc get --config=${KUBECONFIG} ${resourceTypes} -o name | grep -v -E 'replicaset.apps/|configmap/istio-ca-root-cert|configmap/kube-root.ca.crt|configmap/openshift-service-ca.crt')"
+        } catch (Exception e) {
+            println("Ошибка при удалении элементов: " + e.getMessage())
+        }
+    }
+    
+    // Удаление релизов Helm
+    if (BoolHelmDelete) {
+        def helmReleasesList = readJSON text: helmReleases
+        helmReleasesList.each { release ->
+            def releaseName = release.name
+            try {
+                sh "${helm_tool}/helm uninstall ${releaseName} --kubeconfig=${KUBECONFIG}"
+            } catch (Exception e) {
+                println("Ошибка при удалении релиза Helm: ${releaseName}, сообщение: " + e.getMessage())
+            }
+        }
+    }
+    
+    // Удаление секретов Reflex
+    def deleteSecrets = input message: "Удалить секреты Reflex?",
+        parameters: [booleanParam(defaultValue: false, 
+            description: "Секреты для удаления: dynatrace-data-ingest-endpoint, dynatrace-dynakube-config", 
+            name: "DeleteReflexSecrets")]
+    
+    if (deleteSecrets) {
+        try {
+            sh "set +x; ${oc_tool}/oc delete secret dynatrace-data-ingest-endpoint dynatrace-dynakube-config --config=${KUBECONFIG}"
+        } catch (Exception e) {
+            println("Ошибка при удалении секретов: " + e.getMessage())
+        }
+    }
+} else {
+    println("Проект чистый")
+}
