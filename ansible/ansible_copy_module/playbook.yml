@@ -1,5 +1,6 @@
 def oc_tool = tool(name: 'oc-3.11', type: 'oc')
 def helm_tool = tool(name: 'helm-3.5', type: 'helm') // Используем Helm 3.5, обновите, если необходимо
+def helm_tool = tool name: 'helm-v3.6.3', type: 'com.cloudbees.jenkins.plugins.customtools.CustomTool'
 
 // Получение списка релизов Helm
 def helmReleases = sh(script: "${helm_tool}/helm list -a --kubeconfig=${KUBECONFIG} -o json", returnStdout: true).trim()
