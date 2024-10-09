@@ -75,3 +75,70 @@ if (ListEl || helmReleases) {
 } else {
     println("Проект чистый")
 }
+
+
+----------
+
+
+
+
+
+
+
+
+def getInfoBlockAndSubsystemAndClusters(def bitbucket, def repositoryNameCommonStand, def listStand) {
+    // Создаем карту для хранения кластеров по стендам
+    Map standMap = new LinkedHashMap()
+
+    for (String stand : listStand) {
+        // Создаем карту для хранения подсистем и их кластеров для каждого стенда
+        def configDirMap = new LinkedHashMap()
+
+        // Переходим к конкретному репозиторию и директории для этого стенда
+        script.dir("${repositoryNameCommonStand}_${stand}") {
+            bitbucket.downloadRepository("${repositoryNameCommonStand}_${stand}")
+            
+            // Получаем список всех директорий, рекурсивно, чтобы обработать вложенные
+            def str = script.sh(script: "find . -type d", returnStdout: true)
+            def arrStr = str.split("\n")
+
+            // Проходим по каждой найденной директории
+            arrStr.each { configDir -> 
+                // Определяем путь к файлу subsystems.json
+                def subsystemFilePath = "${configDir}/subsystems.json"
+                
+                // Проверяем, существует ли файл
+                def fileExists = script.sh(script: "[ -f ${subsystemFilePath} ] && echo 'true' || echo 'false'", returnStdout: true).trim()
+
+                if (fileExists == 'true') {
+                    // Читаем содержимое файла subsystems.json
+                    def fileContent = script.sh(script: "cat ${subsystemFilePath}", returnStdout: true)
+
+                    // Получаем список подсистем из содержимого файла
+                    def subsystemList = getListSubsystemNew(fileContent)
+
+                    // Создаем карту для хранения кластеров для каждой подсистемы
+                    def subsystemsMap = [:]
+
+                    // Проходим по каждой подсистеме и получаем ее кластеры
+                    subsystemList.each { subsystem ->
+                        def clusters = getClustersFromSubsystem(fileContent, subsystem)
+                        subsystemsMap["${subsystem}"] = clusters.collect { cluster -> "'${cluster}'" }
+                    }
+
+                    // Добавляем информацию о подсистемах и кластерах в карту для этой директории
+                    configDirMap[configDir] = subsystemsMap
+                } else {
+                    // Если файл не найден, продолжаем цикл (обрабатываем другие директории)
+                    // Можно добавить логирование, если нужно, чтобы знать, что файл не найден
+                    script.echo "File ${subsystemFilePath} not found, checking nested directories."
+                }
+            }
+        }
+
+        // Добавляем карту конфигурационных директорий в основную карту для этого стенда
+        standMap[stand] = configDirMap
+    }
+
+    return standMap
+}
