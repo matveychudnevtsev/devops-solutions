@@ -104,8 +104,11 @@ def getInfoBlockAndSubsystemAndClusters(def bitbucket, def repositoryNameCommonS
 
             // Проходим по каждой найденной директории
             arrStr.each { configDir -> 
+                // Убираем './' в начале пути к директории
+                def cleanConfigDir = configDir.replaceFirst("^\\./", "")
+
                 // Определяем путь к файлу subsystems.json
-                def subsystemFilePath = "${configDir}/subsystems.json"
+                def subsystemFilePath = "${cleanConfigDir}/subsystems.json"
                 
                 // Проверяем, существует ли файл
                 def fileExists = script.sh(script: "[ -f ${subsystemFilePath} ] && echo 'true' || echo 'false'", returnStdout: true).trim()
@@ -127,10 +130,9 @@ def getInfoBlockAndSubsystemAndClusters(def bitbucket, def repositoryNameCommonS
                     }
 
                     // Добавляем информацию о подсистемах и кластерах в карту для этой директории
-                    configDirMap[configDir] = subsystemsMap
+                    configDirMap[cleanConfigDir] = subsystemsMap
                 } else {
                     // Если файл не найден, продолжаем цикл (обрабатываем другие директории)
-                    // Можно добавить логирование, если нужно, чтобы знать, что файл не найден
                     script.echo "File ${subsystemFilePath} not found, checking nested directories."
                 }
             }
